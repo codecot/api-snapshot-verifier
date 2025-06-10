@@ -27,7 +27,7 @@ export class SchemaManager {
       this.schemaCache.set(cacheKey, parsedSchema);
       return parsedSchema;
     } catch (error) {
-      throw new Error(`Failed to load schema from ${schema.source}: ${error.message}`);
+      throw new Error(`Failed to load schema from ${schema.source}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -44,7 +44,7 @@ export class SchemaManager {
         isValid: false,
         errors: [{
           path: 'root',
-          message: `Schema validation failed: ${error.message}`,
+          message: `Schema validation failed: ${error instanceof Error ? error.message : String(error)}`,
           severity: 'error' as const
         }],
         warnings: []
@@ -65,7 +65,7 @@ export class SchemaManager {
         isValid: false,
         errors: [{
           path: 'root',
-          message: `Schema validation failed: ${error.message}`,
+          message: `Schema validation failed: ${error instanceof Error ? error.message : String(error)}`,
           severity: 'error' as const
         }],
         warnings: []
@@ -82,15 +82,16 @@ export class SchemaManager {
 
     for (const [path, pathItem] of Object.entries(schema.paths || {})) {
       for (const [method, operation] of Object.entries(pathItem as any)) {
-        if (['get', 'post', 'put', 'delete', 'patch'].includes(method.toLowerCase())) {
+        if (['get', 'post', 'put', 'delete', 'patch'].includes(method.toLowerCase()) && operation && typeof operation === 'object') {
+          const operationObj = operation as any;
           const endpoint: ApiEndpoint = {
-            name: operation.operationId || `${method.toUpperCase()}_${path.replace(/[^a-zA-Z0-9]/g, '_')}`,
+            name: operationObj.operationId || `${method.toUpperCase()}_${path.replace(/[^a-zA-Z0-9]/g, '_')}`,
             url: `${baseServerUrl}${path}`,
             method: method.toUpperCase() as any,
             schema: {
               type: 'openapi',
               source: openApiPath,
-              operationId: operation.operationId,
+              operationId: operationObj.operationId,
               requestValidation: true,
               responseValidation: true
             }
@@ -197,7 +198,7 @@ export class SchemaManager {
     } catch (error) {
       errors.push({
         path: 'root',
-        message: `OpenAPI validation error: ${error.message}`,
+        message: `OpenAPI validation error: ${error instanceof Error ? error.message : String(error)}`,
         severity: 'error'
       });
     }
@@ -220,7 +221,7 @@ export class SchemaManager {
     } catch (error) {
       errors.push({
         path: 'root',
-        message: `JSON Schema validation error: ${error.message}`,
+        message: `JSON Schema validation error: ${error instanceof Error ? error.message : String(error)}`,
         severity: 'error'
       });
     }
@@ -283,7 +284,7 @@ export class SchemaManager {
   private findOperationById(openApiSchema: any, operationId: string): any {
     for (const pathItem of Object.values(openApiSchema.paths || {})) {
       for (const operation of Object.values(pathItem as any)) {
-        if (typeof operation === 'object' && operation.operationId === operationId) {
+        if (typeof operation === 'object' && operation && (operation as any).operationId === operationId) {
           return operation;
         }
       }

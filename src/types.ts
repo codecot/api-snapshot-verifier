@@ -29,6 +29,10 @@ export interface ApiEndpoint {
   body?: any;
   timeout?: number;
   schema?: ApiSchema;
+  auth?: {
+    type: string;
+    config?: any;
+  };
 }
 
 export interface ApiSnapshot {

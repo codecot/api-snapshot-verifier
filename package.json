@@ -35,12 +35,13 @@
     "fs-extra": "^11.1.1",
     "inquirer": "^12.6.3",
     "swagger-parser": "^10.0.3",
-    "yaml": "^2.3.4"
+    "yaml": "^2.8.0"
   },
   "devDependencies": {
     "@types/diff": "^5.0.0",
     "@types/fs-extra": "^11.0.0",
     "@types/node": "^20.8.0",
+    "@types/yaml": "^1.9.6",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^9.0.0",

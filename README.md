@@ -9,6 +9,7 @@ API Snapshot Verifier is a comprehensive tool that allows frontend developers to
 ## Features
 
 ### 🔧 Core Functionality
+
 - 📸 **Snapshot Capture**: Capture API responses with metadata
 - 🔍 **Diff Detection**: Compare current responses with baseline snapshots
 - 🚨 **Breaking Change Alerts**: Identify breaking vs non-breaking changes
@@ -17,6 +18,7 @@ API Snapshot Verifier is a comprehensive tool that allows frontend developers to
 - 📁 **Storage Management**: Automatic snapshot storage and cleanup
 
 ### 📋 Schema Integration
+
 - 🔗 **OpenAPI Import**: Import OpenAPI 3.x specs and auto-generate endpoint configurations
 - ✅ **Request Validation**: Validate request bodies against schema before sending
 - ✅ **Response Validation**: Validate API responses against expected schema
@@ -24,6 +26,7 @@ API Snapshot Verifier is a comprehensive tool that allows frontend developers to
 - 📊 **Contract Testing**: Ensure API responses comply with defined contracts
 
 ### 🔄 Workflow Management
+
 - 🤝 **Interactive Approval**: Review and approve/reject changes interactively
 - 🚀 **Auto-Approval**: Auto-approve non-breaking changes
 - 📜 **Audit Trail**: Complete change history with approval reasons
@@ -41,21 +44,25 @@ npm run build
 ### Option 1: Manual Configuration
 
 1. **Initialize configuration**:
+
     ```bash
     npx api-snapshot init
     ```
 
 2. **Add endpoints interactively**:
+
     ```bash
     npx api-snapshot add
     ```
 
 3. **Capture baseline snapshots**:
+
     ```bash
     npx api-snapshot capture --baseline
     ```
 
 4. **Compare current state with baseline**:
+
     ```bash
     npx api-snapshot compare
     ```
@@ -63,21 +70,25 @@ npm run build
 ### Option 2: Schema-First Approach
 
 1. **Import OpenAPI schema**:
+
     ```bash
     npx api-snapshot import-schema -s openapi.yaml --base-url https://api.example.com
     ```
 
 2. **Capture baseline with validation**:
+
     ```bash
     npx api-snapshot capture --baseline
     ```
 
 3. **Compare with schema validation**:
+
     ```bash
     npx api-snapshot compare --details
     ```
 
 4. **Validate schema compliance**:
+
     ```bash
     npx api-snapshot validate-schema
     ```
@@ -87,17 +98,23 @@ npm run build
 ### Basic Operations
 
 #### `init`
+
 Initialize a new configuration file.
+
 ```bash
 npx api-snapshot init [--force]
 ```
 
 #### `add`
+
 Add a new endpoint to configuration interactively.
+
 ```bash
 npx api-snapshot add [options]
 ```
+
 Options:
+
 - `-n, --name <name>`: Endpoint name
 - `-u, --url <url>`: Endpoint URL
 - `-m, --method <method>`: HTTP method
@@ -105,21 +122,29 @@ Options:
 - `--api-key <header>`: Add custom API key header
 
 #### `capture`
+
 Capture snapshots of configured endpoints.
+
 ```bash
 npx api-snapshot capture [options]
 ```
+
 Options:
+
 - `-e, --endpoint <name>`: Capture only specific endpoint
 - `-b, --baseline`: Save as baseline snapshot
 - `-c, --config <path>`: Path to config file
 
 #### `compare`
+
 Compare current API responses with baselines.
+
 ```bash
 npx api-snapshot compare [options]
 ```
+
 Options:
+
 - `-e, --endpoint <name>`: Compare only specific endpoint
 - `--format <type>`: Output format (table, json, text)
 - `--details`: Show detailed diff with old/new values
@@ -129,27 +154,37 @@ Options:
 - `--save-diff <path>`: Save detailed diff to JSON file
 
 #### `list`
+
 List stored snapshots.
+
 ```bash
 npx api-snapshot list [options]
 ```
 
 #### `clean`
+
 Clean up old snapshots.
+
 ```bash
 npx api-snapshot clean [options]
 ```
+
 Options:
+
 - `-k, --keep <count>`: Number of snapshots to keep per endpoint (default: 10)
 
 ### Schema Operations
 
 #### `import-schema`
+
 Import API schema and generate endpoint configurations.
+
 ```bash
 npx api-snapshot import-schema [options]
 ```
+
 Options:
+
 - `-s, --schema <path>`: Path to OpenAPI/JSON Schema file (required)
 - `-t, --type <type>`: Schema type: openapi, json-schema (default: openapi)
 - `-o, --output <path>`: Output configuration file path
@@ -157,11 +192,15 @@ Options:
 - `--merge`: Merge with existing configuration
 
 #### `validate-schema`
+
 Validate current snapshots against their schemas.
+
 ```bash
 npx api-snapshot validate-schema [options]
 ```
+
 Options:
+
 - `-e, --endpoint <name>`: Validate specific endpoint only
 - `--request`: Validate request schemas only
 - `--response`: Validate response schemas only
@@ -169,11 +208,15 @@ Options:
 ### Workflow Management
 
 #### `history`
+
 View change approval history and summary.
+
 ```bash
 npx api-snapshot history [options]
 ```
+
 Options:
+
 - `-e, --endpoint <name>`: Show history for specific endpoint
 - `--days <number>`: Show changes from last N days (default: 30)
 - `--status <status>`: Filter by status: approved, rejected, pending
