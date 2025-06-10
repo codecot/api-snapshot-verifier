@@ -1,0 +1,52 @@
+{
+  "endpoints": [
+    {
+      "name": "users-api",
+      "url": "https://jsonplaceholder.typicode.com/users",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "posts-api",
+      "url": "https://jsonplaceholder.typicode.com/posts",
+      "method": "GET",
+      "headers": {
+        "Accept": "application/json"
+      }
+    },
+    {
+      "name": "create-post",
+      "url": "https://jsonplaceholder.typicode.com/posts",
+      "method": "POST",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      "body": {
+        "title": "Test Post",
+        "body": "This is a test post for API snapshot testing",
+        "userId": 1
+      }
+    }
+  ],
+  "snapshotDir": "./snapshots",
+  "baselineDir": "./snapshots/baseline",
+  "environment": "development",
+  "rules": [
+    {
+      "path": "response.data.*.id",
+      "severity": "breaking"
+    },
+    {
+      "path": "response.headers.date",
+      "ignore": true
+    },
+    {
+      "path": "response.headers.server",
+      "severity": "informational"
+    }
+  ]
+}
