@@ -5,6 +5,38 @@ import chalk from 'chalk';
 import { SnapshotAgent } from './snapshot-agent.js';
 import { ConfigManager } from './config.js';
 
+// Change logging function
+async function logChange(comparison: any, status: 'approved' | 'rejected' | 'pending', reason: string, fs: any) {
+  const changeLogPath = './api-snapshot-changes.log.json';
+  
+  const changeEntry = {
+    timestamp: new Date().toISOString(),
+    endpoint: comparison.endpoint,
+    status,
+    reason,
+    changesCount: comparison.differences.length,
+    breakingChanges: comparison.differences.filter((d: any) => d.severity === 'breaking').length,
+    nonBreakingChanges: comparison.differences.filter((d: any) => d.severity === 'non-breaking').length,
+    differences: comparison.differences.map((d: any) => ({
+      path: d.path,
+      type: d.type,
+      severity: d.severity
+    }))
+  };
+  
+  let changeLog = [];
+  try {
+    if (await fs.default.pathExists(changeLogPath)) {
+      changeLog = await fs.default.readJson(changeLogPath);
+    }
+  } catch (error) {
+    // Start with empty log if file doesn't exist or is corrupted
+  }
+  
+  changeLog.push(changeEntry);
+  await fs.default.writeJson(changeLogPath, changeLog, { spaces: 2 });
+}
+
 const program = new Command();
 
 program
@@ -77,6 +109,12 @@ program
   .option('-c, --config <path>', 'Path to configuration file', './api-snapshot.config.json')
   .option('-e, --endpoint <name>', 'Compare only specific endpoint')
   .option('--format <type>', 'Output format: table, json, text', 'table')
+  .option('--details', 'Show detailed diff with old/new values')
+  .option('--save-diff <path>', 'Save detailed diff to .diff.json file')
+  .option('--only-breaking', 'Show only breaking changes')
+  .option('--summary', 'Show summary only (no detailed differences)')
+  .option('--interactive', 'Interactive approval workflow for changes')
+  .option('--auto-approve', 'Automatically approve non-breaking changes')
   .action(async (options) => {
     try {
       const agent = new SnapshotAgent(options.config);
@@ -86,15 +124,34 @@ program
         ? [await agent.compareEndpoint(options.endpoint)]
         : await agent.compareAll();
       
+      // Save diff file if requested
+      if (options.saveDiff) {
+        const fs = await import('fs-extra');
+        const diffData = {
+          timestamp: new Date().toISOString(),
+          comparisons: comparisons.filter(c => c !== null),
+          summary: {
+            totalEndpoints: comparisons.length,
+            endpointsWithChanges: comparisons.filter(c => c && c.hasChanges).length,
+            breakingChanges: comparisons.some(c => c && c.differences.some(d => d.severity === 'breaking'))
+          }
+        };
+        await fs.default.writeJson(options.saveDiff, diffData, { spaces: 2 });
+        console.log(chalk.blue(`💾 Diff saved to ${options.saveDiff}`));
+      }
+      
       if (options.format === 'json') {
         console.log(JSON.stringify(comparisons, null, 2));
         return;
       }
       
       let hasBreakingChanges = false;
+      let hasAnyChanges = false;
       
       for (const comparison of comparisons) {
         if (!comparison) continue;
+        
+        if (!comparison.hasChanges && options.summary) continue;
         
         console.log(chalk.bold(`\n🔍 ${comparison.endpoint}`));
         
@@ -103,6 +160,8 @@ program
           continue;
         }
         
+        hasAnyChanges = true;
+        
         const breaking = comparison.differences.filter(d => d.severity === 'breaking');
         const nonBreaking = comparison.differences.filter(d => d.severity === 'non-breaking');
         const informational = comparison.differences.filter(d => d.severity === 'informational');
@@ -110,25 +169,126 @@ program
         if (breaking.length > 0) {
           hasBreakingChanges = true;
           console.log(chalk.red(`  🚨 ${breaking.length} breaking change(s)`));
-          breaking.forEach(diff => {
-            console.log(chalk.red(`    • ${diff.path}: ${diff.type}`));
-          });
+          if (!options.summary) {
+            breaking.forEach(diff => {
+              console.log(chalk.red(`    • ${diff.path}: ${diff.type}`));
+              if (options.details && diff.oldValue !== undefined && diff.newValue !== undefined) {
+                console.log(chalk.red(`      - Old: ${JSON.stringify(diff.oldValue)}`));
+                console.log(chalk.red(`      + New: ${JSON.stringify(diff.newValue)}`));
+              }
+            });
+          }
         }
         
-        if (nonBreaking.length > 0) {
-          console.log(chalk.yellow(`  ⚠️  ${nonBreaking.length} non-breaking change(s)`));
+        if (!options.onlyBreaking) {
+          if (nonBreaking.length > 0) {
+            console.log(chalk.yellow(`  ⚠️  ${nonBreaking.length} non-breaking change(s)`));
+            if (!options.summary && options.details) {
+              nonBreaking.forEach(diff => {
+                console.log(chalk.yellow(`    • ${diff.path}: ${diff.type}`));
+                if (diff.oldValue !== undefined && diff.newValue !== undefined) {
+                  console.log(chalk.yellow(`      - Old: ${JSON.stringify(diff.oldValue)}`));
+                  console.log(chalk.yellow(`      + New: ${JSON.stringify(diff.newValue)}`));
+                }
+              });
+            }
+          }
+          
+          if (informational.length > 0) {
+            console.log(chalk.blue(`  ℹ️  ${informational.length} informational change(s)`));
+            if (!options.summary && options.details) {
+              informational.forEach(diff => {
+                console.log(chalk.blue(`    • ${diff.path}: ${diff.type}`));
+                if (diff.oldValue !== undefined && diff.newValue !== undefined) {
+                  console.log(chalk.blue(`      - Old: ${JSON.stringify(diff.oldValue)}`));
+                  console.log(chalk.blue(`      + New: ${JSON.stringify(diff.newValue)}`));
+                }
+              });
+            }
+          }
         }
+      }
+      
+      // Interactive approval workflow
+      if (options.interactive && hasAnyChanges) {
+        const inquirer = (await import('inquirer')).default;
+        const fs = await import('fs-extra');
         
-        if (informational.length > 0) {
-          console.log(chalk.blue(`  ℹ️  ${informational.length} informational change(s)`));
+        console.log(chalk.bold('\n🔍 Change Approval Workflow'));
+        
+        for (const comparison of comparisons) {
+          if (!comparison || !comparison.hasChanges) continue;
+          
+          const breaking = comparison.differences.filter(d => d.severity === 'breaking');
+          const nonBreaking = comparison.differences.filter(d => d.severity === 'non-breaking');
+          const informational = comparison.differences.filter(d => d.severity === 'informational');
+          
+          console.log(chalk.bold(`\n📋 ${comparison.endpoint}:`));
+          console.log(`   Breaking: ${breaking.length}, Non-breaking: ${nonBreaking.length}, Info: ${informational.length}`);
+          
+          // Auto-approve non-breaking if requested
+          if (breaking.length === 0 && options.autoApprove) {
+            console.log(chalk.green('   ✅ Auto-approved (no breaking changes)'));
+            await logChange(comparison, 'approved', 'auto-approved (no breaking changes)', fs);
+            continue;
+          }
+          
+          const actions = ['approve', 'reject', 'skip'];
+          if (breaking.length === 0) actions.push('approve-and-update-baseline');
+          
+          const answer = await inquirer.prompt([{
+            type: 'list',
+            name: 'action',
+            message: `Action for ${comparison.endpoint}:`,
+            choices: [
+              { name: '✅ Approve changes', value: 'approve' },
+              { name: '❌ Reject changes', value: 'reject' },
+              { name: '⏭️  Skip (decide later)', value: 'skip' },
+              ...(breaking.length === 0 ? [{ name: '📌 Approve and update baseline', value: 'approve-and-update-baseline' }] : [])
+            ]
+          }]);
+          
+          if (answer.action === 'approve' || answer.action === 'approve-and-update-baseline') {
+            console.log(chalk.green(`   ✅ Approved by user`));
+            await logChange(comparison, 'approved', 'manually approved by user', fs);
+            
+            if (answer.action === 'approve-and-update-baseline') {
+              console.log(chalk.blue(`   📌 Updating baseline...`));
+              await agent.captureEndpoint(comparison.endpoint, true);
+            }
+          } else if (answer.action === 'reject') {
+            console.log(chalk.red(`   ❌ Rejected by user`));
+            await logChange(comparison, 'rejected', 'manually rejected by user', fs);
+            hasBreakingChanges = true; // Treat rejected changes as breaking
+          } else {
+            console.log(chalk.yellow(`   ⏭️  Skipped`));
+            await logChange(comparison, 'pending', 'skipped during review', fs);
+          }
         }
+      }
+      
+      // Final summary
+      if (options.summary || options.onlyBreaking) {
+        const totalComparisons = comparisons.filter(c => c !== null).length;
+        const changedEndpoints = comparisons.filter(c => c && c.hasChanges).length;
+        const breakingCount = comparisons.reduce((acc, c) => 
+          acc + (c ? c.differences.filter(d => d.severity === 'breaking').length : 0), 0);
+        
+        console.log(chalk.bold(`\n📊 Summary:`));
+        console.log(`   Endpoints checked: ${totalComparisons}`);
+        console.log(`   Endpoints with changes: ${changedEndpoints}`);
+        console.log(`   Breaking changes: ${breakingCount}`);
       }
       
       if (hasBreakingChanges) {
         console.log(chalk.red('\n🚨 Breaking changes detected!'));
         process.exit(1);
+      } else if (hasAnyChanges) {
+        console.log(chalk.yellow('\n⚠️  Changes detected, but no breaking changes'));
+        process.exit(0);
       } else {
-        console.log(chalk.green('\n✅ No breaking changes detected'));
+        console.log(chalk.green('\n✅ No changes detected'));
+        process.exit(0);
       }
       
     } catch (error) {
@@ -373,6 +533,110 @@ program
       
     } catch (error) {
       console.error(chalk.red('❌ Failed to add endpoint:'), error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('history')
+  .description('View change approval history and summary')
+  .option('-c, --config <path>', 'Path to configuration file', './api-snapshot.config.json')
+  .option('-e, --endpoint <name>', 'Show history for specific endpoint')
+  .option('--days <number>', 'Show changes from last N days', '30')
+  .option('--status <status>', 'Filter by status: approved, rejected, pending')
+  .option('--summary', 'Show summary only')
+  .action(async (options) => {
+    try {
+      const fs = await import('fs-extra');
+      const changeLogPath = './api-snapshot-changes.log.json';
+      
+      if (!await fs.default.pathExists(changeLogPath)) {
+        console.log(chalk.yellow('📋 No change history found'));
+        return;
+      }
+      
+      const changeLog = await fs.default.readJson(changeLogPath);
+      const daysAgo = new Date();
+      daysAgo.setDate(daysAgo.getDate() - parseInt(options.days));
+      
+      // Filter changes
+      let filteredChanges = changeLog.filter((entry: any) => {
+        const entryDate = new Date(entry.timestamp);
+        const matchesDate = entryDate >= daysAgo;
+        const matchesEndpoint = !options.endpoint || entry.endpoint === options.endpoint;
+        const matchesStatus = !options.status || entry.status === options.status;
+        return matchesDate && matchesEndpoint && matchesStatus;
+      });
+      
+      if (filteredChanges.length === 0) {
+        console.log(chalk.yellow('📋 No changes found matching the criteria'));
+        return;
+      }
+      
+      if (options.summary) {
+        // Summary view
+        const summary = {
+          total: filteredChanges.length,
+          approved: filteredChanges.filter((c: any) => c.status === 'approved').length,
+          rejected: filteredChanges.filter((c: any) => c.status === 'rejected').length,
+          pending: filteredChanges.filter((c: any) => c.status === 'pending').length,
+          endpoints: [...new Set(filteredChanges.map((c: any) => c.endpoint))],
+          breakingChanges: filteredChanges.reduce((acc: number, c: any) => acc + c.breakingChanges, 0)
+        };
+        
+        console.log(chalk.bold(`\n📊 Change Summary (Last ${options.days} days):`));
+        console.log(`   Total changes: ${summary.total}`);
+        console.log(chalk.green(`   Approved: ${summary.approved}`));
+        console.log(chalk.red(`   Rejected: ${summary.rejected}`));
+        console.log(chalk.yellow(`   Pending: ${summary.pending}`));
+        console.log(chalk.red(`   Breaking changes: ${summary.breakingChanges}`));
+        console.log(`   Affected endpoints: ${summary.endpoints.length}`);
+        
+        if (summary.endpoints.length <= 10) {
+          console.log(`     ${summary.endpoints.join(', ')}`);
+        }
+      } else {
+        // Detailed view
+        console.log(chalk.bold(`\n📋 Change History (Last ${options.days} days):`));
+        
+        // Group by date
+        const changesByDate = filteredChanges.reduce((acc: any, change: any) => {
+          const date = new Date(change.timestamp).toDateString();
+          if (!acc[date]) acc[date] = [];
+          acc[date].push(change);
+          return acc;
+        }, {});
+        
+        Object.entries(changesByDate)
+          .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
+          .forEach(([date, changes]: [string, any]) => {
+            console.log(chalk.bold(`\n📅 ${date}:`));
+            
+            changes.forEach((change: any) => {
+              const statusIcons: Record<string, string> = {
+                approved: '✅',
+                rejected: '❌', 
+                pending: '⏳'
+              };
+              const statusIcon = statusIcons[change.status] || '❓';
+              
+              const time = new Date(change.timestamp).toLocaleTimeString();
+              console.log(`   ${statusIcon} ${time} - ${change.endpoint}`);
+              console.log(chalk.gray(`      ${change.changesCount} changes (${change.breakingChanges} breaking)`));
+              console.log(chalk.gray(`      ${change.reason}`));
+              
+              if (change.differences.length > 0) {
+                const breakingDiffs = change.differences.filter((d: any) => d.severity === 'breaking');
+                if (breakingDiffs.length > 0) {
+                  console.log(chalk.red(`      Breaking: ${breakingDiffs.map((d: any) => d.path).join(', ')}`));
+                }
+              }
+            });
+          });
+      }
+      
+    } catch (error) {
+      console.error(chalk.red('❌ Failed to read change history:'), error instanceof Error ? error.message : error);
       process.exit(1);
     }
   });

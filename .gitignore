@@ -13,6 +13,9 @@ api-snapshot.config.json
 api-snapshot.local.json
 api-snapshot.dev.json
 
+# Change logs (may contain sensitive endpoint information)
+api-snapshot-changes.log.json
+
 # Allow CI/CD configs (should use environment variables for secrets)
 !api-snapshot.ci.json
 !api-snapshot.github.json
