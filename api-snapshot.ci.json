@@ -1,0 +1,52 @@
+{
+  "endpoints": [
+    {
+      "name": "health-check",
+      "url": "https://api.example.com/health",
+      "method": "GET",
+      "timeout": 5000
+    },
+    {
+      "name": "users-api",
+      "url": "https://api.example.com/users",
+      "method": "GET",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}",
+        "Accept": "application/json"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "create-user",
+      "url": "https://api.example.com/users",
+      "method": "POST",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}",
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      "body": {
+        "name": "Test User",
+        "email": "test@example.com"
+      },
+      "timeout": 15000
+    }
+  ],
+  "snapshotDir": "./snapshots/ci",
+  "baselineDir": "./snapshots/ci/baseline",
+  "environment": "ci",
+  "rules": [
+    {
+      "path": "response.data.*.id",
+      "severity": "breaking"
+    },
+    {
+      "path": "response.headers.date",
+      "ignore": true
+    },
+    {
+      "path": "response.headers.x-request-id",
+      "ignore": true
+    }
+  ]
+}

@@ -435,6 +435,7 @@ jobs:
 Create separate config files:
 
 **api-snapshot.staging.json**:
+
 ```json
 {
   "endpoints": [
@@ -450,6 +451,7 @@ Create separate config files:
 ```
 
 **api-snapshot.production.json**:
+
 ```json
 {
   "endpoints": [
@@ -465,6 +467,7 @@ Create separate config files:
 ```
 
 Usage:
+
 ```bash
 # Test staging
 npx api-snapshot capture --config api-snapshot.staging.json --baseline
@@ -484,6 +487,7 @@ npx api-snapshot compare --config api-snapshot.production.json
 **Problem**: Getting 401/403 errors
 
 **Solution**:
+
 ```bash
 # Check if your token is set correctly
 echo $API_TOKEN
@@ -500,6 +504,7 @@ export API_TOKEN="new-token-value"
 **Problem**: Every comparison shows changes due to timestamps
 
 **Solution**: Add ignore rules for dynamic fields:
+
 ```json
 {
   "rules": [
@@ -524,6 +529,7 @@ export API_TOKEN="new-token-value"
 **Problem**: Requests timing out
 
 **Solution**: Increase timeout in config:
+
 ```json
 {
   "endpoints": [
@@ -542,6 +548,7 @@ export API_TOKEN="new-token-value"
 **Problem**: Snapshots are too large
 
 **Solution**: Use diff rules to focus on important fields:
+
 ```json
 {
   "rules": [
@@ -562,6 +569,7 @@ export API_TOKEN="new-token-value"
 **Problem**: Too many snapshot files
 
 **Solution**:
+
 ```bash
 # Clean up, keeping only last 5 snapshots per endpoint
 npx api-snapshot clean --keep 5
@@ -582,26 +590,31 @@ EOF
 ## Best Practices
 
 ### 1. Baseline Management
+
 - Update baselines when you intentionally change your API
 - Use version control for baseline files
 - Document baseline update procedures
 
 ### 2. Rule Configuration
+
 - Start with minimal rules, add more as needed
 - Ignore dynamic fields (timestamps, request IDs)
 - Mark critical fields as "breaking" severity
 
 ### 3. CI/CD Integration
+
 - Run checks on every PR
 - Set up notifications for breaking changes
 - Use different configs for different environments
 
 ### 4. Monitoring Strategy
+
 - Monitor critical user-facing endpoints
 - Check both success and error responses
 - Include edge cases in your endpoint list
 
 ### 5. Alert Management
+
 - Set up different alert channels for different severities
 - Include context in alert messages
 - Have a runbook for handling breaking changes

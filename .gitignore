@@ -7,3 +7,15 @@ snapshots/
 !snapshots/.gitkeep
 .DS_Store
 *.tsbuildinfo
+
+# API Snapshot config files (may contain sensitive URLs/tokens)
+api-snapshot.config.json
+api-snapshot.local.json
+api-snapshot.dev.json
+
+# Allow CI/CD configs (should use environment variables for secrets)
+!api-snapshot.ci.json
+!api-snapshot.github.json
+!api-snapshot.pipeline.json
+!api-snapshot.staging.json
+!api-snapshot.production.json

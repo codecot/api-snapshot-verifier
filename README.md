@@ -25,18 +25,21 @@ npm run build
 ## Quick Start
 
 1. **Initialize configuration**:
-```bash
-npx api-snapshot init
-```
+
+    ```bash
+    npx api-snapshot init
+    ```
 
 2. **Edit the configuration** to add your API endpoints in `api-snapshot.config.json`
 
 3. **Capture baseline snapshots**:
-```bash
-npx api-snapshot capture --baseline
-```
+
+    ```bash
+    npx api-snapshot capture --baseline
+    ```
 
 4. **Compare current state with baseline**:
+
 ```bash
 npx api-snapshot compare
 ```
@@ -44,43 +47,59 @@ npx api-snapshot compare
 ## Commands
 
 ### `init`
+
 Initialize a new configuration file.
+
 ```bash
 npx api-snapshot init [--force]
 ```
 
 ### `capture`
+
 Capture snapshots of configured endpoints.
+
 ```bash
 npx api-snapshot capture [options]
 ```
+
 Options:
+
 - `-e, --endpoint <name>`: Capture only specific endpoint
 - `-b, --baseline`: Save as baseline snapshot
 - `-c, --config <path>`: Path to config file
 
 ### `compare`
+
 Compare current API responses with baselines.
+
 ```bash
 npx api-snapshot compare [options]
 ```
+
 Options:
+
 - `-e, --endpoint <name>`: Compare only specific endpoint
 - `--format <type>`: Output format (table, json, text)
 - `-c, --config <path>`: Path to config file
 
 ### `list`
+
 List stored snapshots.
+
 ```bash
 npx api-snapshot list [options]
 ```
 
 ### `clean`
+
 Clean up old snapshots.
+
 ```bash
 npx api-snapshot clean [options]
 ```
+
 Options:
+
 - `-k, --keep <count>`: Number of snapshots to keep per endpoint (default: 10)
 
 ## Configuration
@@ -141,10 +160,12 @@ Control how differences are detected and classified:
 ## CI/CD Integration
 
 Exit codes:
+
 - `0`: No breaking changes detected
 - `1`: Breaking changes detected or command failed
 
 Example GitHub Actions workflow:
+
 ```yaml
 - name: API Snapshot Check
   run: |

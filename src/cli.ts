@@ -24,12 +24,12 @@ program
       const fs = await import('fs-extra');
       const configPath = './api-snapshot.config.json';
       
-      if (await fs.pathExists(configPath) && !options.force) {
+      if (await fs.default.pathExists(configPath) && !options.force) {
         console.log(chalk.yellow('⚠️  Configuration already exists. Use --force to overwrite.'));
         return;
       }
       
-      await fs.writeJson(configPath, defaultConfig, { spaces: 2 });
+      await fs.default.writeJson(configPath, defaultConfig, { spaces: 2 });
       console.log(chalk.green('✅ Created api-snapshot.config.json'));
       console.log(chalk.blue('📝 Edit the configuration file to add your API endpoints.'));
     } catch (error) {
@@ -161,6 +161,218 @@ program
       
     } catch (error) {
       console.error(chalk.red('❌ Failed to list snapshots:'), error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('add')
+  .description('Add a new endpoint to the configuration')
+  .option('-c, --config <path>', 'Path to configuration file', './api-snapshot.config.json')
+  .option('-n, --name <name>', 'Endpoint name')
+  .option('-u, --url <url>', 'Endpoint URL')
+  .option('-m, --method <method>', 'HTTP method', 'GET')
+  .option('--auth-token', 'Add Authorization Bearer token from environment')
+  .option('--api-key <header>', 'Add custom API key header (e.g., "X-API-Key")')
+  .option('--content-type <type>', 'Set Content-Type header', 'application/json')
+  .option('--body <json>', 'JSON body for POST/PUT/PATCH requests')
+  .option('--timeout <ms>', 'Request timeout in milliseconds', '5000')
+  .action(async (options) => {
+    try {
+      const fs = await import('fs-extra');
+      const inquirer = (await import('inquirer')).default;
+      
+      if (!await fs.default.pathExists(options.config)) {
+        console.log(chalk.red('❌ Configuration file not found. Run "api-snapshot init" first.'));
+        process.exit(1);
+      }
+      
+      const config = await fs.default.readJson(options.config);
+      
+      // Interactive prompts if options not provided
+      const answers = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'name',
+          message: 'Endpoint name:',
+          when: !options.name,
+          validate: (input) => {
+            if (!input.trim()) return 'Name is required';
+            if (config.endpoints.some((e: any) => e.name === input.trim())) {
+              return 'Endpoint name already exists';
+            }
+            return true;
+          }
+        },
+        {
+          type: 'input',
+          name: 'url',
+          message: 'Endpoint URL:',
+          when: !options.url,
+          validate: (input) => {
+            if (!input.trim()) return 'URL is required';
+            try {
+              new URL(input.trim());
+              return true;
+            } catch {
+              return 'Please enter a valid URL';
+            }
+          }
+        },
+        {
+          type: 'list', 
+          name: 'method',
+          message: 'HTTP method:',
+          choices: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+          default: 'GET',
+          when: !options.method
+        },
+        {
+          type: 'confirm',
+          name: 'needsAuth',
+          message: 'Does this endpoint require authentication?',
+          default: false,
+          when: !options.authToken && !options.apiKey
+        },
+        {
+          type: 'list',
+          name: 'authType',
+          message: 'Authentication type:',
+          choices: [
+            { name: 'Bearer Token (Authorization: Bearer ${API_TOKEN})', value: 'bearer' },
+            { name: 'API Key Header', value: 'apikey' }
+          ],
+          when: (answers) => answers.needsAuth && !options.authToken && !options.apiKey
+        },
+        {
+          type: 'input',
+          name: 'apiKeyHeader',
+          message: 'API Key header name (e.g., X-API-Key):',
+          when: (answers) => answers.authType === 'apikey' && !options.apiKey,
+          validate: (input) => input.trim() ? true : 'Header name is required'
+        },
+        {
+          type: 'input',
+          name: 'body', 
+          message: 'Request body (JSON):',
+          when: (answers) => {
+            const method = options.method || answers.method;
+            return ['POST', 'PUT', 'PATCH'].includes(method) && !options.body;
+          },
+          validate: (input) => {
+            if (!input.trim()) return true; // Optional
+            try {
+              JSON.parse(input.trim());
+              return true;
+            } catch {
+              return 'Please enter valid JSON or leave empty';
+            }
+          }
+        },
+        {
+          type: 'input',
+          name: 'timeout',
+          message: 'Request timeout (ms):',
+          default: '5000',
+          when: !options.timeout,
+          validate: (input) => {
+            const num = parseInt(input);
+            return !isNaN(num) && num > 0 ? true : 'Please enter a positive number';
+          }
+        }
+      ]);
+      
+      // Build endpoint configuration
+      const endpoint: any = {
+        name: options.name || answers.name,
+        url: options.url || answers.url,
+        method: options.method || answers.method
+      };
+      
+      // Add headers if needed
+      const headers: Record<string, string> = {};
+      
+      // Handle authentication
+      if (options.authToken || answers.authType === 'bearer') {
+        headers['Authorization'] = 'Bearer ${API_TOKEN}';
+      }
+      
+      if (options.apiKey || answers.authType === 'apikey') {
+        const headerName = options.apiKey || answers.apiKeyHeader;
+        headers[headerName] = '${API_KEY}';
+      }
+      
+      // Handle content type for POST/PUT/PATCH
+      const method = endpoint.method;
+      if (['POST', 'PUT', 'PATCH'].includes(method)) {
+        headers['Content-Type'] = options.contentType;
+        if (!headers['Accept']) {
+          headers['Accept'] = 'application/json';
+        }
+      }
+      
+      // Add headers to endpoint if any exist
+      if (Object.keys(headers).length > 0) {
+        endpoint.headers = headers;
+      }
+      
+      // Add body for POST/PUT/PATCH
+      if (['POST', 'PUT', 'PATCH'].includes(method)) {
+        const bodyStr = options.body || answers.body;
+        if (bodyStr && bodyStr.trim()) {
+          try {
+            endpoint.body = JSON.parse(bodyStr.trim());
+          } catch (error) {
+            console.log(chalk.red('❌ Invalid JSON body provided'));
+            process.exit(1);
+          }
+        }
+      }
+      
+      // Add timeout if specified
+      const timeout = parseInt(options.timeout || answers.timeout || '5000');
+      if (timeout !== 5000) {
+        endpoint.timeout = timeout;
+      }
+      
+      // Validate if provided via options
+      if (options.name && config.endpoints.some((e: any) => e.name === options.name)) {
+        console.log(chalk.red('❌ Endpoint name already exists'));
+        process.exit(1);
+      }
+      
+      if (options.url) {
+        try {
+          new URL(options.url);
+        } catch {
+          console.log(chalk.red('❌ Invalid URL provided'));
+          process.exit(1);
+        }
+      }
+      
+      config.endpoints.push(endpoint);
+      await fs.default.writeJson(options.config, config, { spaces: 2 });
+      
+      console.log(chalk.green(`✅ Added endpoint "${endpoint.name}"`));
+      console.log(chalk.blue(`   ${endpoint.method} ${endpoint.url}`));
+      
+      if (endpoint.headers) {
+        console.log(chalk.gray('   Headers:'));
+        Object.entries(endpoint.headers).forEach(([key, value]) => {
+          console.log(chalk.gray(`     ${key}: ${value}`));
+        });
+      }
+      
+      if (endpoint.body) {
+        console.log(chalk.gray('   Body: JSON object'));
+      }
+      
+      if (endpoint.timeout && endpoint.timeout !== 5000) {
+        console.log(chalk.gray(`   Timeout: ${endpoint.timeout}ms`));
+      }
+      
+    } catch (error) {
+      console.error(chalk.red('❌ Failed to add endpoint:'), error instanceof Error ? error.message : error);
       process.exit(1);
     }
   });
