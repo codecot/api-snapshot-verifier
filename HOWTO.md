@@ -1,14 +1,15 @@
 # 📖 How To Use API Snapshot Verifier
 
-This guide provides step-by-step tutorials for common use cases with API Snapshot Verifier.
+This guide provides step-by-step tutorials for common use cases with API Snapshot Verifier, including the new schema validation features.
 
 ## Table of Contents
 
 1. [Quick Start Tutorial](#quick-start-tutorial)
-2. [Setting Up Your First API Monitoring](#setting-up-your-first-api-monitoring)
-3. [CI/CD Integration Tutorial](#cicd-integration-tutorial)
-4. [Advanced Configuration Examples](#advanced-configuration-examples)
-5. [Troubleshooting Common Issues](#troubleshooting-common-issues)
+2. [Schema-First Tutorial](#schema-first-tutorial)
+3. [Setting Up Your First API Monitoring](#setting-up-your-first-api-monitoring)
+4. [CI/CD Integration Tutorial](#cicd-integration-tutorial)
+5. [Advanced Configuration Examples](#advanced-configuration-examples)
+6. [Troubleshooting Common Issues](#troubleshooting-common-issues)
 
 ---
 
@@ -75,6 +76,254 @@ npx api-snapshot compare
 # Informational Changes:  0
 # 
 # ✅ No breaking changes detected
+```
+
+---
+
+## Schema-First Tutorial
+
+### Scenario: Import OpenAPI Specification
+
+This tutorial shows how to use the new schema import feature to auto-generate endpoint configurations and enable contract validation.
+
+#### Step 1: Prepare Your OpenAPI Schema
+
+Create or obtain an OpenAPI 3.x specification file (`api-spec.yaml`):
+
+```yaml
+openapi: 3.0.0
+info:
+  title: E-commerce API
+  version: 1.0.0
+servers:
+  - url: https://api.mystore.com
+paths:
+  /users:
+    get:
+      operationId: getUsers
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    email:
+                      type: string
+                  required:
+                    - id
+                    - name
+                    - email
+    post:
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+              required:
+                - name
+                - email
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  name:
+                    type: string
+                  email:
+                    type: string
+```
+
+#### Step 2: Import Schema and Generate Configuration
+
+```bash
+# Import OpenAPI schema and generate endpoint configurations
+npx api-snapshot import-schema -s api-spec.yaml --base-url https://api.mystore.com
+
+# Output:
+# 📋 Importing openapi schema from api-spec.yaml...
+# ✅ Generated 2 endpoint(s) from OpenAPI schema
+# ✅ Configuration saved to ./api-snapshot.config.json
+# 
+# 📊 Generated endpoints:
+#   GET getUsers
+#     https://api.mystore.com/users
+#   POST createUser
+#     https://api.mystore.com/users
+```
+
+#### Step 3: Review Generated Configuration
+
+The tool creates a configuration with schema validation enabled:
+
+```json
+{
+  "endpoints": [
+    {
+      "name": "getUsers",
+      "url": "https://api.mystore.com/users",
+      "method": "GET",
+      "schema": {
+        "type": "openapi",
+        "source": "./api-spec.yaml",
+        "operationId": "getUsers",
+        "requestValidation": true,
+        "responseValidation": true
+      }
+    },
+    {
+      "name": "createUser",
+      "url": "https://api.mystore.com/users",
+      "method": "POST",
+      "schema": {
+        "type": "openapi",
+        "source": "./api-spec.yaml",
+        "operationId": "createUser",
+        "requestValidation": true,
+        "responseValidation": true
+      }
+    }
+  ],
+  "snapshotDir": "snapshots",
+  "baselineDir": "baselines",
+  "environment": "development"
+}
+```
+
+#### Step 4: Add Authentication and Request Bodies
+
+Edit the configuration to add authentication and request data:
+
+```json
+{
+  "endpoints": [
+    {
+      "name": "getUsers",
+      "url": "https://api.mystore.com/users",
+      "method": "GET",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      },
+      "schema": {
+        "type": "openapi",
+        "source": "./api-spec.yaml",
+        "operationId": "getUsers",
+        "requestValidation": true,
+        "responseValidation": true
+      }
+    },
+    {
+      "name": "createUser",
+      "url": "https://api.mystore.com/users",
+      "method": "POST",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": "John Doe",
+        "email": "john@example.com"
+      },
+      "schema": {
+        "type": "openapi",
+        "source": "./api-spec.yaml",
+        "operationId": "createUser",
+        "requestValidation": true,
+        "responseValidation": true
+      }
+    }
+  ]
+}
+```
+
+#### Step 5: Capture Baseline with Schema Validation
+
+```bash
+# Set your API token
+export API_TOKEN="your-api-token"
+
+# Capture baseline snapshots with schema validation
+npx api-snapshot capture --baseline
+
+# Output:
+# 📸 Captured 2 snapshot(s)
+# 📌 Saved as baseline
+# 
+# Note: Any schema validation errors will be logged but won't stop capture
+```
+
+#### Step 6: Compare with Schema Awareness
+
+```bash
+# Compare current state with schema validation
+npx api-snapshot compare --details
+
+# Output:
+# 🔍 getUsers
+#   ✅ No changes detected
+#   ✅ Response validation passed
+# 
+# 🔍 createUser
+#   ✅ No changes detected
+#   ✅ Request validation passed
+#   ✅ Response validation passed
+```
+
+#### Step 7: Validate Schema Compliance
+
+```bash
+# Validate all snapshots against their schemas
+npx api-snapshot validate-schema
+
+# Output:
+# 🔍 Validating snapshots against schemas...
+# 
+# 🔍 getUsers:
+#   ✅ Response validation passed
+# 
+# 🔍 createUser:
+#   ✅ Request validation passed
+#   ✅ Response validation passed
+# 
+# 📊 Validation Summary:
+#   Total snapshots: 2
+#   Valid: 2
+#   Invalid: 0
+# 
+# ✅ All snapshots pass schema validation
+```
+
+#### Step 8: Merge with Existing Configuration
+
+If you already have a configuration, merge new endpoints:
+
+```bash
+# Merge with existing configuration
+npx api-snapshot import-schema -s api-spec.yaml --merge
+
+# Output:
+# 📋 Importing openapi schema from api-spec.yaml...
+# 📝 Merging with existing configuration...
+# ✅ Added 0 new endpoint(s) (no duplicates)
 ```
 
 ---
@@ -384,7 +633,58 @@ jobs:
 }
 ```
 
-### Example 2: GraphQL API Monitoring
+### Example 2: OpenAPI Schema-Enhanced Configuration
+
+```json
+{
+  "endpoints": [
+    {
+      "name": "get-products",
+      "url": "https://api.example.com/products",
+      "method": "GET",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      },
+      "schema": {
+        "type": "openapi",
+        "source": "./openapi.yaml",
+        "operationId": "getProducts",
+        "requestValidation": false,
+        "responseValidation": true
+      }
+    },
+    {
+      "name": "create-product",
+      "url": "https://api.example.com/products",
+      "method": "POST",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "name": "Test Product",
+        "price": 99.99,
+        "category": "electronics"
+      },
+      "schema": {
+        "type": "openapi",
+        "source": "./openapi.yaml",
+        "operationId": "createProduct",
+        "requestValidation": true,
+        "responseValidation": true
+      }
+    }
+  ],
+  "rules": [
+    {
+      "path": "response.validation.errors",
+      "severity": "breaking"
+    }
+  ]
+}
+```
+
+### Example 3: GraphQL API Monitoring
 
 ```json
 {
@@ -430,7 +730,7 @@ jobs:
 }
 ```
 
-### Example 3: Multi-Environment Setup
+### Example 4: Multi-Environment Setup
 
 Create separate config files:
 
@@ -543,7 +843,44 @@ export API_TOKEN="new-token-value"
 }
 ```
 
-### Issue 4: Managing Large Responses
+### Issue 4: Schema Validation Failures
+
+**Problem**: Schema validation errors appearing
+
+**Solution**: Debug schema validation step by step:
+
+```bash
+# Check specific endpoint validation
+npx api-snapshot validate-schema --endpoint users-api --response
+
+# Check OpenAPI schema file
+npx api-snapshot import-schema -s openapi.yaml --merge
+
+# Validate only request or response
+npx api-snapshot validate-schema --request
+npx api-snapshot validate-schema --response
+```
+
+Update schema configuration if needed:
+
+```json
+{
+  "endpoints": [
+    {
+      "name": "users-api",
+      "schema": {
+        "type": "openapi",
+        "source": "./openapi.yaml",
+        "operationId": "getUsers",
+        "requestValidation": false,
+        "responseValidation": true
+      }
+    }
+  ]
+}
+```
+
+### Issue 5: Managing Large Responses
 
 **Problem**: Snapshots are too large
 
@@ -559,12 +896,16 @@ export API_TOKEN="new-token-value"
     {
       "path": "response.data.*.debug_info",
       "ignore": true
+    },
+    {
+      "path": "response.validation",
+      "severity": "breaking"
     }
   ]
 }
 ```
 
-### Issue 5: Cleaning Up Old Snapshots
+### Issue 6: Cleaning Up Old Snapshots
 
 **Problem**: Too many snapshot files
 
@@ -601,23 +942,33 @@ EOF
 - Ignore dynamic fields (timestamps, request IDs)
 - Mark critical fields as "breaking" severity
 
-### 3. CI/CD Integration
+### 3. Schema Management
+
+- Keep OpenAPI specs up to date with your API
+- Enable validation for critical endpoints
+- Use schema validation to catch contract violations early
+- Test both request and response validation
+
+### 4. CI/CD Integration
 
 - Run checks on every PR
 - Set up notifications for breaking changes
 - Use different configs for different environments
+- Include schema validation in your CI pipeline
 
-### 4. Monitoring Strategy
+### 5. Monitoring Strategy
 
 - Monitor critical user-facing endpoints
 - Check both success and error responses
 - Include edge cases in your endpoint list
+- Validate schema compliance regularly
 
-### 5. Alert Management
+### 6. Alert Management
 
 - Set up different alert channels for different severities
 - Include context in alert messages
 - Have a runbook for handling breaking changes
+- Alert on schema validation failures
 
 ---
 

@@ -1,3 +1,26 @@
+export interface ApiSchema {
+  type: 'openapi' | 'json-schema' | 'graphql' | 'custom';
+  source: string;
+  version?: string;
+  operationId?: string;
+  requestValidation?: boolean;
+  responseValidation?: boolean;
+}
+
+export interface ValidationError {
+  path: string;
+  message: string;
+  expected?: any;
+  actual?: any;
+  severity: 'error' | 'warning';
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+  warnings: ValidationError[];
+}
+
 export interface ApiEndpoint {
   name: string;
   url: string;
@@ -5,16 +28,21 @@ export interface ApiEndpoint {
   headers?: Record<string, string>;
   body?: any;
   timeout?: number;
+  schema?: ApiSchema;
 }
 
 export interface ApiSnapshot {
   endpoint: ApiEndpoint;
   timestamp: string;
+  request?: {
+    validation?: ValidationResult;
+  };
   response: {
     status: number;
     headers: Record<string, string>;
     data: any;
     duration: number;
+    validation?: ValidationResult;
   };
   metadata: {
     version: string;

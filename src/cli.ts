@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { SnapshotAgent } from './snapshot-agent.js';
 import { ConfigManager } from './config.js';
+import { SchemaManager } from './schema-manager.js';
 
 // Change logging function
 async function logChange(comparison: any, status: 'approved' | 'rejected' | 'pending', reason: string, fs: any) {
@@ -659,6 +660,231 @@ program
       
     } catch (error) {
       console.error(chalk.red('❌ Cleanup failed:'), error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('import-schema')
+  .description('Import API schema and generate endpoint configurations')
+  .option('-s, --schema <path>', 'Path to OpenAPI/JSON Schema file')
+  .option('-t, --type <type>', 'Schema type: openapi, json-schema', 'openapi')
+  .option('-o, --output <path>', 'Output configuration file path', './api-snapshot.config.json')
+  .option('--base-url <url>', 'Base URL for generated endpoints')
+  .option('--merge', 'Merge with existing configuration instead of overwriting')
+  .action(async (options) => {
+    try {
+      if (!options.schema) {
+        console.log(chalk.red('❌ Schema file path is required. Use -s or --schema option.'));
+        process.exit(1);
+      }
+
+      const fs = await import('fs-extra');
+      const schemaManager = new SchemaManager();
+      
+      if (!await fs.default.pathExists(options.schema)) {
+        console.log(chalk.red(`❌ Schema file not found: ${options.schema}`));
+        process.exit(1);
+      }
+
+      console.log(chalk.blue(`📋 Importing ${options.type} schema from ${options.schema}...`));
+
+      if (options.type === 'openapi') {
+        const endpoints = await schemaManager.generateEndpointsFromOpenApi(options.schema, options.baseUrl);
+        
+        console.log(chalk.green(`✅ Generated ${endpoints.length} endpoint(s) from OpenAPI schema`));
+
+        let config: any = {
+          endpoints: [],
+          snapshotDir: 'snapshots',
+          baselineDir: 'baselines',
+          environment: 'development'
+        };
+
+        // Merge with existing config if requested
+        if (options.merge && await fs.default.pathExists(options.output)) {
+          config = await fs.default.readJson(options.output);
+          console.log(chalk.blue(`📝 Merging with existing configuration...`));
+        }
+
+        // Add schema validation to all endpoints
+        const enhancedEndpoints = endpoints.map(endpoint => ({
+          ...endpoint,
+          schema: {
+            type: 'openapi',
+            source: options.schema,
+            operationId: endpoint.schema?.operationId,
+            requestValidation: true,
+            responseValidation: true
+          }
+        }));
+
+        if (options.merge) {
+          // Add only new endpoints (avoid duplicates by name)
+          const existingNames = new Set(config.endpoints.map((e: any) => e.name));
+          const newEndpoints = enhancedEndpoints.filter(e => !existingNames.has(e.name));
+          config.endpoints.push(...newEndpoints);
+          console.log(chalk.green(`✅ Added ${newEndpoints.length} new endpoint(s)`));
+        } else {
+          config.endpoints = enhancedEndpoints;
+        }
+
+        await fs.default.writeJson(options.output, config, { spaces: 2 });
+        console.log(chalk.green(`✅ Configuration saved to ${options.output}`));
+
+        // Show summary
+        console.log(chalk.bold('\n📊 Generated endpoints:'));
+        enhancedEndpoints.forEach(endpoint => {
+          console.log(`  ${endpoint.method} ${endpoint.name}`);
+          console.log(chalk.gray(`    ${endpoint.url}`));
+        });
+
+      } else {
+        console.log(chalk.red(`❌ Schema type "${options.type}" not yet supported. Currently supports: openapi`));
+        process.exit(1);
+      }
+
+    } catch (error) {
+      console.error(chalk.red('❌ Schema import failed:'), error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('validate-schema')
+  .description('Validate current snapshots against their schemas')
+  .option('-c, --config <path>', 'Path to configuration file', './api-snapshot.config.json')
+  .option('-e, --endpoint <name>', 'Validate specific endpoint only')
+  .option('--request', 'Validate request schemas only')
+  .option('--response', 'Validate response schemas only')
+  .action(async (options) => {
+    try {
+      const agent = new SnapshotAgent(options.config);
+      await agent.initialize();
+      
+      console.log(chalk.blue('🔍 Validating snapshots against schemas...'));
+
+      const snapshots = await agent.listSnapshots(options.endpoint);
+      if (snapshots.length === 0) {
+        console.log(chalk.yellow('📁 No snapshots found to validate'));
+        return;
+      }
+
+      const schemaManager = new SchemaManager();
+      let totalSnapshots = 0;
+      let validSnapshots = 0;
+      let invalidSnapshots = 0;
+
+      for (const snapshotPath of snapshots) {
+        try {
+          const fs = await import('fs-extra');
+          const snapshot = await fs.default.readJson(snapshotPath);
+          
+          if (!snapshot.endpoint.schema) {
+            console.log(chalk.gray(`⏭️  ${snapshot.endpoint.name}: No schema configured`));
+            continue;
+          }
+
+          totalSnapshots++;
+          console.log(chalk.bold(`\n🔍 ${snapshot.endpoint.name}:`));
+
+          let hasErrors = false;
+
+          // Validate request if requested and data exists
+          if ((!options.response || options.request) && snapshot.request?.validation) {
+            const validation = snapshot.request.validation;
+            if (!validation.isValid) {
+              hasErrors = true;
+              console.log(chalk.red(`  ❌ Request validation failed:`));
+              validation.errors.forEach((error: any) => {
+                console.log(chalk.red(`    • ${error.path}: ${error.message}`));
+              });
+            } else {
+              console.log(chalk.green(`  ✅ Request validation passed`));
+            }
+          }
+
+          // Validate response if requested and data exists
+          if ((!options.request || options.response) && snapshot.response?.validation) {
+            const validation = snapshot.response.validation;
+            if (!validation.isValid) {
+              hasErrors = true;
+              console.log(chalk.red(`  ❌ Response validation failed:`));
+              validation.errors.forEach((error: any) => {
+                console.log(chalk.red(`    • ${error.path}: ${error.message}`));
+              });
+            } else {
+              console.log(chalk.green(`  ✅ Response validation passed`));
+            }
+          }
+
+          // If no validation data exists, re-validate
+          if (!snapshot.request?.validation && !snapshot.response?.validation) {
+            console.log(chalk.yellow(`  ⚠️  No validation data found, running fresh validation...`));
+            
+            if (!options.response || options.request) {
+              if (snapshot.endpoint.body) {
+                const requestValidation = await schemaManager.validateRequest(
+                  snapshot.endpoint.body, 
+                  snapshot.endpoint.schema
+                );
+                if (!requestValidation.isValid) {
+                  hasErrors = true;
+                  console.log(chalk.red(`  ❌ Request validation failed:`));
+                  requestValidation.errors.forEach(error => {
+                    console.log(chalk.red(`    • ${error.path}: ${error.message}`));
+                  });
+                } else {
+                  console.log(chalk.green(`  ✅ Request validation passed`));
+                }
+              }
+            }
+
+            if (!options.request || options.response) {
+              const responseValidation = await schemaManager.validateResponse(
+                snapshot.response.data,
+                snapshot.response.status,
+                snapshot.endpoint.schema
+              );
+              if (!responseValidation.isValid) {
+                hasErrors = true;
+                console.log(chalk.red(`  ❌ Response validation failed:`));
+                responseValidation.errors.forEach(error => {
+                  console.log(chalk.red(`    • ${error.path}: ${error.message}`));
+                });
+              } else {
+                console.log(chalk.green(`  ✅ Response validation passed`));
+              }
+            }
+          }
+
+          if (hasErrors) {
+            invalidSnapshots++;
+          } else {
+            validSnapshots++;
+          }
+
+        } catch (error) {
+          console.log(chalk.red(`  ❌ Failed to validate: ${error instanceof Error ? error.message : error}`));
+          invalidSnapshots++;
+        }
+      }
+
+      // Summary
+      console.log(chalk.bold(`\n📊 Validation Summary:`));
+      console.log(`  Total snapshots: ${totalSnapshots}`);
+      console.log(chalk.green(`  Valid: ${validSnapshots}`));
+      console.log(chalk.red(`  Invalid: ${invalidSnapshots}`));
+
+      if (invalidSnapshots > 0) {
+        console.log(chalk.red('\n🚨 Schema validation failures detected!'));
+        process.exit(1);
+      } else {
+        console.log(chalk.green('\n✅ All snapshots pass schema validation'));
+      }
+
+    } catch (error) {
+      console.error(chalk.red('❌ Schema validation failed:'), error instanceof Error ? error.message : error);
       process.exit(1);
     }
   });

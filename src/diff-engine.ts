@@ -1,5 +1,5 @@
 import { diffJson } from 'diff';
-import { ApiSnapshot, SnapshotComparison, SnapshotDiff, DiffRule } from './types.js';
+import { ApiSnapshot, SnapshotComparison, SnapshotDiff, DiffRule, ValidationResult } from './types.js';
 
 export class DiffEngine {
   constructor(private readonly rules: DiffRule[] = []) {}
@@ -25,6 +25,10 @@ export class DiffEngine {
     // Compare headers (excluding sensitive ones)
     const headerDiffs = this.compareHeaders(baseline.response.headers, current.response.headers);
     differences.push(...headerDiffs);
+
+    // Compare schema validation results
+    const schemaDiffs = this.compareSchemaValidation(baseline, current);
+    differences.push(...schemaDiffs);
 
     // Apply rules to filter or modify severity
     const filteredDiffs = this.applyRules(differences);
@@ -202,6 +206,88 @@ export class DiffEngine {
       
       return true;
     });
+  }
+
+  private compareSchemaValidation(baseline: ApiSnapshot, current: ApiSnapshot): SnapshotDiff[] {
+    const differences: SnapshotDiff[] = [];
+
+    // Compare request validation results
+    if (baseline.request?.validation || current.request?.validation) {
+      const baselineValid = baseline.request?.validation?.isValid ?? true;
+      const currentValid = current.request?.validation?.isValid ?? true;
+      
+      if (baselineValid !== currentValid) {
+        differences.push({
+          path: 'request.validation.isValid',
+          type: 'changed',
+          oldValue: baselineValid,
+          newValue: currentValid,
+          severity: currentValid ? 'non-breaking' : 'breaking'
+        });
+      }
+
+      // Compare validation error counts
+      const baselineErrors = baseline.request?.validation?.errors?.length ?? 0;
+      const currentErrors = current.request?.validation?.errors?.length ?? 0;
+      
+      if (baselineErrors !== currentErrors) {
+        differences.push({
+          path: 'request.validation.errors.count',
+          type: 'changed',
+          oldValue: baselineErrors,
+          newValue: currentErrors,
+          severity: currentErrors > baselineErrors ? 'breaking' : 'non-breaking'
+        });
+      }
+    }
+
+    // Compare response validation results
+    if (baseline.response?.validation || current.response?.validation) {
+      const baselineValid = baseline.response?.validation?.isValid ?? true;
+      const currentValid = current.response?.validation?.isValid ?? true;
+      
+      if (baselineValid !== currentValid) {
+        differences.push({
+          path: 'response.validation.isValid',
+          type: 'changed',
+          oldValue: baselineValid,
+          newValue: currentValid,
+          severity: currentValid ? 'non-breaking' : 'breaking'
+        });
+      }
+
+      // Compare validation error counts
+      const baselineErrors = baseline.response?.validation?.errors?.length ?? 0;
+      const currentErrors = current.response?.validation?.errors?.length ?? 0;
+      
+      if (baselineErrors !== currentErrors) {
+        differences.push({
+          path: 'response.validation.errors.count',
+          type: 'changed',
+          oldValue: baselineErrors,
+          newValue: currentErrors,
+          severity: currentErrors > baselineErrors ? 'breaking' : 'non-breaking'
+        });
+      }
+
+      // Detect new validation errors (schema contract violations)
+      if (current.response?.validation?.errors) {
+        const baselineErrorPaths = new Set(baseline.response?.validation?.errors?.map(e => e.path) ?? []);
+        
+        for (const error of current.response.validation.errors) {
+          if (!baselineErrorPaths.has(error.path)) {
+            differences.push({
+              path: `response.validation.errors.${error.path}`,
+              type: 'added',
+              newValue: error.message,
+              severity: 'breaking'
+            });
+          }
+        }
+      }
+    }
+
+    return differences;
   }
 
   generateTextDiff(baseline: ApiSnapshot, current: ApiSnapshot): string {

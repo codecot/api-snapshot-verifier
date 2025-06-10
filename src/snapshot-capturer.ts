@@ -1,13 +1,26 @@
 import axios, { AxiosResponse, AxiosRequestConfig } from 'axios';
-import { ApiEndpoint, ApiSnapshot, SnapshotResult } from './types.js';
+import { ApiEndpoint, ApiSnapshot, SnapshotResult, ValidationResult } from './types.js';
+import { SchemaManager } from './schema-manager.js';
 
 export class SnapshotCapturer {
   private readonly defaultTimeout = 30000;
+  private readonly schemaManager = new SchemaManager();
 
   async captureSnapshot(endpoint: ApiEndpoint): Promise<SnapshotResult> {
     const startTime = Date.now();
     
     try {
+      // Validate request body if schema is provided
+      let requestValidation: ValidationResult | undefined;
+      if (endpoint.schema && endpoint.body) {
+        requestValidation = await this.schemaManager.validateRequest(endpoint.body, endpoint.schema);
+        
+        // Log validation errors but continue with the request
+        if (!requestValidation.isValid) {
+          console.warn(`Request validation failed for ${endpoint.name}:`, requestValidation.errors);
+        }
+      }
+
       const config: AxiosRequestConfig = {
         method: endpoint.method,
         url: endpoint.url,
@@ -23,14 +36,30 @@ export class SnapshotCapturer {
       const response: AxiosResponse = await axios(config);
       const duration = Date.now() - startTime;
 
+      // Validate response if schema is provided
+      let responseValidation: ValidationResult | undefined;
+      if (endpoint.schema) {
+        responseValidation = await this.schemaManager.validateResponse(
+          response.data, 
+          response.status, 
+          endpoint.schema
+        );
+        
+        if (!responseValidation.isValid) {
+          console.warn(`Response validation failed for ${endpoint.name}:`, responseValidation.errors);
+        }
+      }
+
       const snapshot: ApiSnapshot = {
         endpoint,
         timestamp: new Date().toISOString(),
+        request: requestValidation ? { validation: requestValidation } : undefined,
         response: {
           status: response.status,
           headers: this.normalizeHeaders(response.headers),
           data: response.data,
-          duration
+          duration,
+          validation: responseValidation
         },
         metadata: {
           version: '1.0.0',
