@@ -137,6 +137,14 @@ export class Application {
     return this.container;
   }
 
+  getConfig(): Config {
+    return this.appConfig.config;
+  }
+
+  getLogger(): Logger {
+    return this.logger;
+  }
+
   private async registerCoreServices(): Promise<void> {
     this.logger.debug('Registering core services...');
 

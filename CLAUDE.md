@@ -180,3 +180,5 @@ Untracked files:
 ```
 
 Ready for commit when the refactoring is complete and tested.
+
+## UI Roadmap

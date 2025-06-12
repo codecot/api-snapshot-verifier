@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { Config } from './types.js';
 
 export class ConfigManager {
@@ -25,6 +25,17 @@ export class ConfigManager {
       throw new Error('Config not loaded. Call loadConfig() first.');
     }
     return this.config;
+  }
+
+  saveConfig(configPath: string, config: Config): void {
+    try {
+      this.validateConfig(config);
+      const configContent = JSON.stringify(config, null, 2);
+      writeFileSync(configPath, configContent, 'utf-8');
+      this.config = config;
+    } catch (error) {
+      throw new Error(`Failed to save config: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   private validateConfig(config: Config): void {
