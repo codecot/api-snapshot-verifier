@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Trash2, Edit, Globe, FileText, Settings, CheckCircle, XCircle, Activity, Clock, AlertCircle, Database } from 'lucide-react';
+import { Trash2, Edit, Globe, FileText, Settings, CheckCircle, XCircle, Activity, Clock, AlertCircle, Database, MoreVertical, CheckSquare, X } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
 import apiClient from '../api/client';
 import toast from 'react-hot-toast';
 
@@ -34,6 +35,8 @@ export function SpaceManagement() {
   const [editingSpace, setEditingSpace] = useState<number | null>(null);
   const [editDescription, setEditDescription] = useState('');
   const [editDisplayName, setEditDisplayName] = useState('');
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
 
   // Fetch spaces with React Query
   const { data: spacesData, isLoading, refetch } = useQuery({
@@ -65,6 +68,23 @@ export function SpaceManagement() {
     } else {
       setSelectedSpaces(new Set(spaces.map(s => s.id)));
     }
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    setShowActionsMenu(false);
+    if (!selectionMode) {
+      // Entering selection mode - clear any existing selections
+      setSelectedSpaces(new Set());
+    } else {
+      // Exiting selection mode - clear selections
+      setSelectedSpaces(new Set());
+    }
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedSpaces(new Set());
   };
 
   // Delete batch mutation
@@ -195,35 +215,105 @@ export function SpaceManagement() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">Space Management</h1>
-        <p className="text-gray-600">Manage your API snapshot spaces and their configurations</p>
-      </div>
-
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={selectedSpaces.size === spaces.length && spaces.length > 0}
-              onChange={handleSelectAll}
-              className="rounded"
-            />
-            <span>Select All</span>
-          </label>
-          {selectedSpaces.size > 0 && (
-            <button
-              onClick={handleDeleteSelected}
-              disabled={deleteBatchMutation.isPending}
-              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete Selected ({selectedSpaces.size})
-            </button>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold mb-2">Space Management</h1>
+            <p className="text-gray-600">Manage your API snapshot spaces and their configurations</p>
+          </div>
+          {/* Three Dots Menu */}
+          {spaces.length > 0 && (
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowActionsMenu(!showActionsMenu)}
+                className="h-9 w-9 p-0"
+                title="More actions: Enable selection mode for bulk operations"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            
+              {/* Dropdown Menu */}
+              {showActionsMenu && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                  <button
+                    onClick={toggleSelectionMode}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    {selectionMode ? (
+                      <>
+                        <X className="h-4 w-4" />
+                        Exit Selection Mode
+                      </>
+                    ) : (
+                      <>
+                        <CheckSquare className="h-4 w-4" />
+                        Selection Mode
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+              
+              {/* Close menu when clicking outside */}
+              {showActionsMenu && (
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowActionsMenu(false)}
+                />
+              )}
+            </div>
           )}
         </div>
-        <div className="text-sm text-gray-600">
-          Total: {spaces.length} spaces
+      </div>
+
+      {/* Bulk Actions - Only show when in selection mode */}
+      {selectionMode && spaces.length > 0 && (
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedSpaces.size === spaces.length && spaces.length > 0}
+                  onChange={handleSelectAll}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-blue-800 cursor-pointer hover:text-blue-900">
+                  {selectedSpaces.size === spaces.length ? 'Deselect All' : 'Select All'}
+                  {selectedSpaces.size > 0 && ` (${selectedSpaces.size}/${spaces.length})`}
+                </span>
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              {selectedSpaces.size > 0 && (
+                <Button
+                  onClick={handleDeleteSelected}
+                  disabled={deleteBatchMutation.isPending}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-red-300 text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Selected ({selectedSpaces.size})
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exitSelectionMode}
+                className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-100"
+              >
+                <X className="h-4 w-4" />
+                Exit
+              </Button>
+            </div>
+          </div>
         </div>
+      )}
+
+      <div className="mb-4 text-sm text-gray-600 text-right">
+        Total: {spaces.length} spaces
       </div>
 
       <div className="grid gap-4">
@@ -234,12 +324,15 @@ export function SpaceManagement() {
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3 flex-1">
-                <input
-                  type="checkbox"
-                  checked={selectedSpaces.has(space.id)}
-                  onChange={() => handleSelectSpace(space.id)}
-                  className="mt-1 rounded"
-                />
+                {/* Only show checkbox in selection mode */}
+                {selectionMode && (
+                  <input
+                    type="checkbox"
+                    checked={selectedSpaces.has(space.id)}
+                    onChange={() => handleSelectSpace(space.id)}
+                    className="mt-1 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                )}
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="text-lg font-semibold">{space.name}</h3>

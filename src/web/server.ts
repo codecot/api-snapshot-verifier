@@ -10,7 +10,7 @@ import { Server as SocketServer } from 'socket.io';
 import dotenv from 'dotenv';
 
 import { Application } from '../core/application.js';
-import { ConfigManager } from '../config.js';
+import { DatabaseConfigManager } from '../database/database-config-manager.js';
 import { LogLevel, ConsoleLogger } from '../core/logger.js';
 
 // Import API routes
@@ -25,7 +25,6 @@ dotenv.config();
 export interface WebServerConfig {
   port: number;
   host: string;
-  configPath: string;
   logLevel: LogLevel;
   corsOrigin?: string | string[];
   enableRateLimit?: boolean;
@@ -71,8 +70,32 @@ export class WebServer {
 
   private async initializeCoreApplication(): Promise<void> {
     try {
-      const configManager = new ConfigManager();
-      const config = await configManager.loadConfig(this.config.configPath);
+      // Use database config manager instead of file-based config
+      const configManager = new DatabaseConfigManager();
+      
+      // Create minimal config for the Application - the actual endpoints come from the database
+      const config = {
+        endpoints: [],
+        snapshotDir: process.env.SNAPSHOT_DIR || './snapshots',
+        baselineDir: process.env.BASELINE_DIR || './baselines',
+        environment: process.env.NODE_ENV || 'development',
+        plugins: {
+          auth: { providers: [] },
+          formatters: { default: 'table' },
+          storage: { provider: 'filesystem' },
+          diff: { engine: 'json' }
+        },
+        rules: [
+          {
+            path: 'response.headers.date',
+            ignore: true
+          },
+          {
+            path: 'response.headers.x-request-id',
+            ignore: true
+          }
+        ]
+      };
       
       this.coreApp = new Application({
         config,
@@ -80,7 +103,7 @@ export class WebServer {
       });
 
       await this.coreApp.initialize();
-      this.logger.info('Core application initialized');
+      this.logger.info('Core application initialized with database backend');
     } catch (error) {
       this.logger.error('Failed to initialize core application:', error);
       throw error;
