@@ -172,6 +172,10 @@ export class WebServer {
     // Space management routes
     const { spacesRoutes } = await import('./routes/spaces.js');
     await this.app.register(spacesRoutes, { prefix: '/api/spaces' });
+    
+    // Server management routes - Disabled: Now using localStorage
+    // const { serversRoutes } = await import('./routes/servers.js');
+    // await this.app.register(serversRoutes, { prefix: '/api/servers' });
 
     // Health check
     this.app.get('/health', async (request, reply) => {

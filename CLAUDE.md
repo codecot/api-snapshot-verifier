@@ -10,6 +10,7 @@ API Snapshot Verifier - A comprehensive tool for tracking and diffing real-time 
 ✅ COMPLETED: Database Migration & Cleanup System
 ✅ COMPLETED: React UI Bug Fixes
 ✅ COMPLETED: Postman Collection Import (June 2025)
+✅ COMPLETED: Server Management Refactoring (Jan 2025)
 
 Successfully refactored the monolithic CLI into a fully plugin-extensible architecture with:
 
@@ -30,6 +31,26 @@ Successfully refactored the monolithic CLI into a fully plugin-extensible archit
 - Converts Postman requests to API endpoints
 - Handles nested folders, variables, auth, and request bodies
 - Seamless integration with existing OpenAPI import UI
+
+**Server Management Refactoring (Jan 2025):**
+- Moved server storage from backend database to frontend localStorage
+- Resolved chicken-and-egg problem of server configurations
+- Added first-time setup wizard for backend configuration
+- Implemented local server management with connection testing
+- Each server now stores its own data independently
+- Auto-fetch server info when opening Settings page
+- WebSocket enabled by default for new users
+- Changed "Offline" to "Polling" status indicator for clarity
+
+**Dashboard Improvements (Jan 2025):**
+- Fixed stats display to correctly show endpoint and snapshot counts
+- Added loading states for all statistics
+- Implemented "No Space Selected" state with helpful messaging
+- Added empty state for snapshots with guidance
+- Made stats cards clickable - endpoints and snapshots cards navigate to respective pages
+- Added visual indicators (ExternalLink icon) for clickable cards
+- Calculate actual average response time from successful snapshots
+- "API Snapshot" title in sidebar now links to dashboard (root page)
 
 ## Architecture Overview
 
@@ -263,6 +284,34 @@ npm run lint           # Code linting (if available)
 npm run test           # Run tests (if available)
 ```
 
+## First-Time User Experience
+
+When starting the app for the first time:
+
+1. **Backend Setup Wizard**: If no backend is configured in localStorage, users see a setup wizard
+2. **Default Server**: The wizard suggests `http://localhost:3301` as the default
+3. **Connection Test**: Users must test the connection before saving
+4. **Server Storage**: Server configurations are saved in browser localStorage
+5. **Server Management**: Users can add multiple servers and switch between them in Settings
+6. **WebSocket Enabled**: Real-time updates via WebSocket are enabled by default for new users
+7. **Auto-fetch Server Info**: Settings page automatically fetches server info on load
+
+The app no longer auto-detects the backend URL from the current origin - users must explicitly configure it.
+
+### Connection Status
+
+- **Live (Green)**: WebSocket connected for real-time updates
+- **Polling (Orange)**: WebSocket disabled/unavailable, using auto-refresh every 10s
+- Server info is automatically fetched when opening Settings page
+
+### Key UI/UX Improvements
+
+1. **Dashboard Navigation**: Stats cards are clickable - clicking endpoints or snapshots cards navigates to respective pages
+2. **Sidebar Branding**: "API Snapshot" title is now a clickable link to dashboard
+3. **Server Management**: All server configurations stored in localStorage for persistence across backends
+4. **Empty States**: Helpful messages and guidance when no data is available
+5. **Loading States**: Proper loading indicators prevent showing incorrect "0" values
+
 ## Database Management Commands
 
 ```bash
@@ -322,6 +371,8 @@ DELETE /api/parameters/space/:space/:name  # Delete space parameter
 - **Plugin Architecture**: Supports hot-swapping plugins without restart
 - **Service Keys**: Defined as symbols for type safety
 - **Error Handling**: React UI errors fixed, proper null checking implemented
+- **Server Management**: Server configurations stored in browser localStorage, not backend database
+- **First-Time Setup**: App shows setup wizard on first run to configure backend connection
 
 ## Database Schema
 
@@ -363,7 +414,7 @@ After cleanup (as of Dec 2025):
 ### Common Issues Resolved:
 
 1. **"Objects are not valid as a React child"** 
-   - **Cause**: Missing import for React components (e.g., Loader2)
+   - **Cause**: Missing import for React components (e.g., Loader2, Camera)
    - **Fix**: Add missing imports from lucide-react or other component libraries
 
 2. **"All endpoints disappeared from spaces"**
@@ -378,19 +429,27 @@ After cleanup (as of Dec 2025):
    - **Cause**: Null/undefined parameter objects not properly checked
    - **Fix**: Add `param &&` checks before Object.entries() calls
 
-5. **Space statistics not updating after parameter changes**
-   - **Cause**: React Query cache not invalidating properly
-   - **Fix**: Convert to React Query with `staleTime: 0` and manual cache invalidation
+5. **"Dashboard shows no stats data"**
+   - **Cause**: API response data extraction mismatch (double .data access)
+   - **Fix**: API functions already extract inner data array, don't access .data again
 
-6. **"Config file not found" error during OpenAPI import**
+6. **"SQLite can only bind numbers, strings..."**
+   - **Cause**: Trying to save JavaScript Date objects to SQLite
+   - **Fix**: Convert dates to ISO strings before database storage
+
+7. **"Dashboard shows offline"**
+   - **Cause**: WebSocket disabled by default or misleading status text
+   - **Fix**: Enable WebSocket by default, change "Offline" to "Polling" for clarity
+
+8. **"Config file not found" error during OpenAPI import**
    - **Cause**: Old file-based ConfigManager still being used
    - **Fix**: Replace with DatabaseConfigManager throughout config-simple.ts
 
-7. **"configManager.saveConfig is not a function"**
+9. **"configManager.saveConfig is not a function"**
    - **Cause**: DatabaseConfigManager doesn't have saveConfig method
    - **Fix**: Use direct database operations (createEndpoint, updateEndpoint, etc.)
 
-8. **"Cannot read properties of undefined (reading 'url')" in Postman import**
+10. **"Cannot read properties of undefined (reading 'url')" in Postman import**
    - **Cause**: Generated OpenAPI schema had empty servers array
    - **Fix**: Always provide default server URL and extract path from full URL
 

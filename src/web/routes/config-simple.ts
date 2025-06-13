@@ -434,6 +434,16 @@ async function configRoutes(fastify: FastifyInstance) {
       // Add endpoint to database
       dbConfigManager.database.createEndpoint(spaceRecord.id, endpoint);
       
+      // Emit WebSocket event for real-time updates
+      const io = (fastify as any).io;
+      if (io) {
+        io.emit('endpoint:created', { 
+          space: space || 'default',
+          endpoint: endpoint,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       return {
         success: true,
         message: 'Endpoint added successfully',
@@ -587,6 +597,16 @@ async function configRoutes(fastify: FastifyInstance) {
       // Delete endpoint from database
       dbConfigManager.database.deleteEndpointByName(spaceRecord.id, name);
       
+      // Emit WebSocket event for real-time updates
+      const io = (fastify as any).io;
+      if (io) {
+        io.emit('endpoint:deleted', { 
+          space: space || 'default',
+          endpointName: name,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       const message = deleteSnapshots === 'true' ? 
         `Endpoint deleted successfully (${snapshotsDeleted} snapshots also deleted)` :
         'Endpoint deleted successfully';
@@ -613,14 +633,22 @@ async function configRoutes(fastify: FastifyInstance) {
   // GET /api/config/spaces - List available config spaces
   fastify.get('/spaces', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const spaces = dbConfigManager.listSpaces().map(space => 
-        space === 'default space' ? 'default' : space
-      );
+      // Get the underlying database service
+      const dbService = dbConfigManager.database;
+      
+      // Get spaces with full statistics
+      const spacesWithStats = dbService.listSpacesWithStats();
+      
+      // Transform to include endpoint counts - simplify stats to just endpoint count
+      const spacesData = spacesWithStats.map(space => ({
+        name: space.name === 'default space' ? 'default' : space.name,
+        endpoint_count: space.stats.endpoints
+      }));
       
       return {
         success: true,
-        data: spaces,
-        count: spaces.length,
+        data: spacesData,
+        count: spacesData.length,
         timestamp: new Date().toISOString()
       };
     } catch (error) {
@@ -637,6 +665,8 @@ async function configRoutes(fastify: FastifyInstance) {
 
   // POST /api/config/spaces - Create new config space
   fastify.post('/spaces', async (request: FastifyRequest, reply: FastifyReply) => {
+    let spaceName: string | undefined;
+    
     try {
       const { space, config, template, includeExample } = request.body as { 
         space: string; 
@@ -644,6 +674,8 @@ async function configRoutes(fastify: FastifyInstance) {
         template?: string;
         includeExample?: boolean;
       };
+      
+      spaceName = space;
       
       if (!space) {
         reply.status(400);
@@ -655,6 +687,7 @@ async function configRoutes(fastify: FastifyInstance) {
       }
 
       const configManager = dbConfigManager;
+      
       configManager.createSpace(space, {
         config,
         template,
@@ -670,6 +703,18 @@ async function configRoutes(fastify: FastifyInstance) {
       };
     } catch (error) {
       console.error('Failed to create space:', error);
+      
+      // Check if it's a SQLite unique constraint error
+      if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
+        reply.status(409);
+        return {
+          success: false,
+          error: 'Space already exists',
+          message: `Space '${spaceName}' already exists. This might be due to a race condition.`,
+          timestamp: new Date().toISOString()
+        };
+      }
+      
       reply.status(500);
       return {
         success: false,
@@ -1038,7 +1083,19 @@ async function configRoutes(fastify: FastifyInstance) {
       
       // Check WebSocket status
       const hasWebSocket = !!(fastify as any).io;
-      const isWebSocketEnabled = hasWebSocket && (fastify as any).io.engine;
+      let isWebSocketEnabled = false;
+      let connectedClients = 0;
+      
+      try {
+        if (hasWebSocket && (fastify as any).io.engine) {
+          isWebSocketEnabled = true;
+          // Safely get connected clients count
+          const engine = (fastify as any).io.engine;
+          connectedClients = engine.clientsCount || 0;
+        }
+      } catch (wsError) {
+        console.error('Error checking WebSocket status:', wsError);
+      }
       
       // Get database statistics
       let statistics = {
@@ -1049,23 +1106,24 @@ async function configRoutes(fastify: FastifyInstance) {
       };
       
       try {
-        const spaces = dbConfigManager.database.getAllSpaces();
-        statistics.spaces = spaces.length;
-        
-        // Count endpoints across all spaces
-        for (const space of spaces) {
-          const endpoints = dbConfigManager.database.getEndpointsBySpaceId(space.id);
-          statistics.endpoints += endpoints.length;
-          
-          // Count parameters for this space
-          const parameters = dbConfigManager.database.getSpaceParameters(space.id);
-          statistics.parameters += Object.keys(parameters).length;
-        }
-        
-        // Count snapshots (if we have a method for it)
-        // For now, we'll estimate based on file system if needed
+        // Use the getStats method which is available on DatabaseConfigManager
+        const stats = dbConfigManager.getStats();
+        statistics = stats;
       } catch (dbError) {
         console.error('Failed to get database statistics:', dbError);
+        // If getStats fails, try manual counting
+        try {
+          const spaceNames = dbConfigManager.listSpaces();
+          statistics.spaces = spaceNames.length;
+          
+          // Count endpoints across all spaces
+          for (const spaceName of spaceNames) {
+            const config = dbConfigManager.loadConfig(undefined, spaceName);
+            statistics.endpoints += config.endpoints.length;
+          }
+        } catch (fallbackError) {
+          console.error('Fallback statistics also failed:', fallbackError);
+        }
       }
       
       return {
@@ -1089,7 +1147,7 @@ async function configRoutes(fastify: FastifyInstance) {
             enabled: isWebSocketEnabled,
             endpoint: hasWebSocket ? '/socket.io/' : null,
             transports: hasWebSocket ? ['websocket', 'polling'] : [],
-            connectedClients: isWebSocketEnabled ? (fastify as any).io.engine.clientsCount : 0
+            connectedClients: connectedClients
           },
           database: {
             type: 'SQLite',

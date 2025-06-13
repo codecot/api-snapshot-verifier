@@ -54,8 +54,6 @@ export class DatabaseConfigManager {
     for (const endpoint of configToSave.endpoints || []) {
       this.db.createEndpoint(space.id, endpoint);
     }
-
-    console.log(`Created space '${spaceName}' with ${configToSave.endpoints?.length || 0} endpoints`);
   }
 
   deleteSpace(spaceName: string): void {
@@ -66,7 +64,6 @@ export class DatabaseConfigManager {
 
     // Database cascading will handle endpoints, parameters, etc.
     this.db.deleteSpace(space.id);
-    console.log(`Deleted space '${spaceName}'`);
   }
 
   spaceExists(spaceName: string): boolean {

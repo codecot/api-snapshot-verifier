@@ -148,7 +148,8 @@ export class DatabaseService {
   }
 
   spaceExists(name: string): boolean {
-    return this.getSpaceByName(name) !== null;
+    const space = this.getSpaceByName(name);
+    return space !== null && space !== undefined;
   }
 
   // Endpoint operations
@@ -339,6 +340,142 @@ export class DatabaseService {
   // Close database connection
   close(): void {
     this.db.close();
+  }
+
+  // Saved servers operations
+  getSavedServers(): any[] {
+    const stmt = this.db.prepare('SELECT * FROM saved_servers ORDER BY is_default DESC, name ASC');
+    return stmt.all();
+  }
+
+  getSavedServerById(id: number): any | null {
+    const stmt = this.db.prepare('SELECT * FROM saved_servers WHERE id = ?');
+    return stmt.get(id);
+  }
+
+  getSavedServerByUrl(url: string): any | null {
+    const stmt = this.db.prepare('SELECT * FROM saved_servers WHERE url = ?');
+    return stmt.get(url);
+  }
+
+  createSavedServer(server: {
+    url: string;
+    name: string;
+    description?: string;
+    is_default?: boolean;
+    is_locked?: boolean;
+    environment?: string;
+    auth_config?: any;
+    server_info?: any;
+  }): any {
+    const stmt = this.db.prepare(`
+      INSERT INTO saved_servers (url, name, description, is_default, is_locked, environment, auth_config, server_info)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const info = stmt.run(
+      server.url,
+      server.name,
+      server.description || null,
+      server.is_default ? 1 : 0,
+      server.is_locked ? 1 : 0,
+      server.environment || null,
+      server.auth_config ? JSON.stringify(server.auth_config) : null,
+      server.server_info ? JSON.stringify(server.server_info) : null
+    );
+    
+    return this.getSavedServerById(info.lastInsertRowid as number);
+  }
+
+  updateSavedServer(id: number, updates: Partial<{
+    name: string;
+    description: string;
+    is_default: boolean;
+    is_locked: boolean;
+    environment: string;
+    auth_config: any;
+    server_info: any;
+    last_connected_at: string;
+  }>): boolean {
+    const fields: string[] = [];
+    const values: any[] = [];
+    
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value !== undefined) {
+        fields.push(`${key} = ?`);
+        if (key === 'auth_config' || key === 'server_info') {
+          values.push(JSON.stringify(value));
+        } else if (key === 'is_default' || key === 'is_locked') {
+          values.push(value ? 1 : 0);
+        } else {
+          values.push(value);
+        }
+      }
+    });
+    
+    if (fields.length === 0) return false;
+    
+    values.push(id);
+    const stmt = this.db.prepare(`UPDATE saved_servers SET ${fields.join(', ')} WHERE id = ?`);
+    const info = stmt.run(...values);
+    
+    return info.changes > 0;
+  }
+
+  setDefaultServer(id: number): boolean {
+    // First, unset all defaults
+    this.db.prepare('UPDATE saved_servers SET is_default = 0').run();
+    
+    // Then set the new default
+    const stmt = this.db.prepare('UPDATE saved_servers SET is_default = 1 WHERE id = ?');
+    const info = stmt.run(id);
+    
+    return info.changes > 0;
+  }
+
+  deleteSavedServer(id: number): boolean {
+    const stmt = this.db.prepare('DELETE FROM saved_servers WHERE id = ? AND is_locked = 0');
+    const info = stmt.run(id);
+    return info.changes > 0;
+  }
+
+  // Server connection history
+  recordServerConnection(serverId: number, result: {
+    responseTime: number;
+    success: boolean;
+    error?: string;
+    serverInfo?: any;
+  }): void {
+    const stmt = this.db.prepare(`
+      INSERT INTO server_connection_history 
+      (server_id, response_time_ms, status, error_message, server_version, spaces_count, endpoints_count)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    stmt.run(
+      serverId,
+      result.responseTime,
+      result.success ? 'success' : 'failed',
+      result.error || null,
+      result.serverInfo?.server?.version || null,
+      result.serverInfo?.database?.statistics?.spaces || null,
+      result.serverInfo?.database?.statistics?.endpoints || null
+    );
+    
+    // Update last_connected_at if successful
+    if (result.success) {
+      this.db.prepare('UPDATE saved_servers SET last_connected_at = CURRENT_TIMESTAMP WHERE id = ?').run(serverId);
+    }
+  }
+
+  getServerConnectionHistory(serverId: number, limit: number = 10): any[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM server_connection_history 
+      WHERE server_id = ? 
+      ORDER BY connected_at DESC 
+      LIMIT ?
+    `);
+    return stmt.all(serverId, limit);
   }
 
   // Get database statistics

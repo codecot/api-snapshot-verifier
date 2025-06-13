@@ -1064,7 +1064,7 @@ export default function Endpoints() {
               <div className="space-y-4">
                 <p className="text-sm text-gray-600">
                   {deleteTarget.type === 'single' && deleteTarget.endpoint ? (
-                    <>Are you sure you want to delete endpoint <strong>"{deleteTarget.endpoint.name}"</strong>?</>
+                    <>Are you sure you want to delete endpoint <strong className="inline-block max-w-[300px] truncate align-bottom" title={deleteTarget.endpoint.name}>"{deleteTarget.endpoint.name}"</strong>?</>
                   ) : (
                     <>Are you sure you want to delete <strong>{selectedEndpoints.size}</strong> selected endpoint(s)?</>
                   )}
@@ -1077,14 +1077,14 @@ export default function Endpoints() {
                   <ul className="text-xs text-red-600 space-y-1 max-h-32 overflow-y-auto">
                     {deleteTarget.type === 'single' && deleteTarget.endpoint ? (
                       <li className="flex items-center gap-1">
-                        <Trash2 className="h-3 w-3" />
-                        {deleteTarget.endpoint.name}
+                        <Trash2 className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate" title={deleteTarget.endpoint.name}>{deleteTarget.endpoint.name}</span>
                       </li>
                     ) : (
                       Array.from(selectedEndpoints).map(name => (
                         <li key={name} className="flex items-center gap-1">
-                          <Trash2 className="h-3 w-3" />
-                          {name}
+                          <Trash2 className="h-3 w-3 flex-shrink-0" />
+                          <span className="truncate" title={name}>{name}</span>
                         </li>
                       ))
                     )}
@@ -1130,8 +1130,8 @@ export default function Endpoints() {
                     ) : (
                       <Trash2 className="h-4 w-4 mr-2" />
                     )}
-                    {deleteTarget.type === 'single' && deleteTarget.endpoint
-                      ? `Delete "${deleteTarget.endpoint.name}"`
+                    {deleteTarget.type === 'single' 
+                      ? 'Delete Endpoint'
                       : `Delete ${selectedEndpoints.size} Endpoint(s)`
                     }
                   </Button>

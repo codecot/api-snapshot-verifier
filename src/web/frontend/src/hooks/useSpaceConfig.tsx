@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
+import { useWebSocket } from '@/contexts/WebSocketContext'
 import apiClient from '@/api/client'
+
+export interface SpaceInfo {
+  name: string
+  endpoint_count: number
+}
 
 export interface SpaceConfig {
   currentSpace: string
   availableSpaces: string[]
+  spacesInfo: SpaceInfo[]
   isLoading: boolean
   error: string | null
   switchSpace: (space: string) => void
@@ -28,6 +35,7 @@ export function useSpaceConfig(): SpaceConfig {
     return initialSpace
   })
   const [error, setError] = useState<string | null>(null)
+  const { socket } = useWebSocket()
   
   // Update current space when URL changes
   useEffect(() => {
@@ -46,10 +54,32 @@ export function useSpaceConfig(): SpaceConfig {
     },
     retry: 1,
     refetchOnWindowFocus: true, // Auto-refresh on window focus
-    refetchInterval: 60000, // Auto-refresh every minute
+    refetchInterval: 10000, // Auto-refresh every 10 seconds for more responsive updates
   })
 
-  const availableSpaces = spacesResponse?.data || []
+  const spacesInfo: SpaceInfo[] = spacesResponse?.data || []
+  const availableSpaces = spacesInfo.map(s => s.name)
+  
+  // Listen for WebSocket events to refresh spaces
+  useEffect(() => {
+    if (!socket) return
+    
+    const handleEndpointChange = () => {
+      console.log('🔧 Endpoint changed, refreshing spaces')
+      refetch()
+    }
+    
+    // Listen for endpoint events
+    socket.on('endpoint:created', handleEndpointChange)
+    socket.on('endpoint:updated', handleEndpointChange)
+    socket.on('endpoint:deleted', handleEndpointChange)
+    
+    return () => {
+      socket.off('endpoint:created', handleEndpointChange)
+      socket.off('endpoint:updated', handleEndpointChange)
+      socket.off('endpoint:deleted', handleEndpointChange)
+    }
+  }, [socket, refetch])
 
   // Update localStorage when current space changes
   useEffect(() => {
@@ -136,6 +166,7 @@ export function useSpaceConfig(): SpaceConfig {
   return {
     currentSpace,
     availableSpaces,
+    spacesInfo,
     isLoading,
     error,
     switchSpace,

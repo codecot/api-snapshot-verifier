@@ -75,7 +75,13 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkPreference = () => {
       const savedPref = localStorage.getItem('useWebSocket')
-      setWebSocketEnabled(savedPref === 'true')
+      if (savedPref === null) {
+        // First time user - enable WebSocket by default
+        setWebSocketEnabled(true)
+        localStorage.setItem('useWebSocket', 'true')
+      } else {
+        setWebSocketEnabled(savedPref === 'true')
+      }
     }
     
     checkPreference()

@@ -110,3 +110,44 @@ CREATE TRIGGER IF NOT EXISTS update_config_settings_updated_at
 BEGIN
   UPDATE config_settings SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
 END;
+
+-- Saved servers for easy switching between different backends
+CREATE TABLE IF NOT EXISTS saved_servers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  url TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  description TEXT,
+  is_default BOOLEAN DEFAULT 0,
+  is_locked BOOLEAN DEFAULT 0,
+  environment TEXT, -- 'development', 'staging', 'production', etc.
+  auth_config JSON, -- JSON for auth settings if needed
+  server_info JSON, -- Cached server info
+  last_connected_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Connection history for monitoring
+CREATE TABLE IF NOT EXISTS server_connection_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  server_id INTEGER REFERENCES saved_servers(id) ON DELETE CASCADE,
+  connected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  response_time_ms INTEGER,
+  status TEXT, -- 'success', 'failed'
+  error_message TEXT,
+  server_version TEXT,
+  spaces_count INTEGER,
+  endpoints_count INTEGER
+);
+
+-- Indexes for saved servers
+CREATE INDEX IF NOT EXISTS idx_saved_servers_is_default ON saved_servers(is_default);
+CREATE INDEX IF NOT EXISTS idx_server_connection_history_server_id ON server_connection_history(server_id);
+CREATE INDEX IF NOT EXISTS idx_server_connection_history_connected_at ON server_connection_history(connected_at);
+
+-- Trigger to update saved_servers updated_at
+CREATE TRIGGER IF NOT EXISTS update_saved_servers_updated_at 
+  AFTER UPDATE ON saved_servers
+BEGIN
+  UPDATE saved_servers SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+END;

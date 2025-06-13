@@ -22,14 +22,23 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <QueryClientProvider client={queryClient}>
     <BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
-      <SpaceProvider>
-        <WebSocketProvider>
+      <WebSocketProvider>
+        <SpaceProvider>
           <CaptureProgressProvider>
             <App />
-            <Toaster position="top-right" />
+            <Toaster 
+              position="bottom-center" 
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  background: '#363636',
+                  color: '#fff',
+                }
+              }}
+            />
           </CaptureProgressProvider>
-        </WebSocketProvider>
-      </SpaceProvider>
+        </SpaceProvider>
+      </WebSocketProvider>
     </BrowserRouter>
   </QueryClientProvider>
 )
