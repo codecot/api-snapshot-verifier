@@ -11,6 +11,7 @@ API Snapshot Verifier - A comprehensive tool for tracking and diffing real-time 
 ✅ COMPLETED: React UI Bug Fixes
 ✅ COMPLETED: Postman Collection Import (June 2025)
 ✅ COMPLETED: Server Management Refactoring (Jan 2025)
+✅ COMPLETED: NPM Scripts Enhancement (Jan 2025)
 
 Successfully refactored the monolithic CLI into a fully plugin-extensible architecture with:
 
@@ -51,6 +52,13 @@ Successfully refactored the monolithic CLI into a fully plugin-extensible archit
 - Added visual indicators (ExternalLink icon) for clickable cards
 - Calculate actual average response time from successful snapshots
 - "API Snapshot" title in sidebar now links to dashboard (root page)
+
+**NPM Scripts Enhancement (Jan 2025):**
+- Added `postinstall` script to automatically install frontend dependencies
+- Created comprehensive cleanup scripts for code, data, and full reset
+- Added `clean:code` for safe code cleanup (preserves user data)
+- Separated `reinstall` (safe) from `reset:all` (nuclear option)
+- Fixed frontend dependency installation issues
 
 ## Architecture Overview
 
@@ -278,11 +286,43 @@ node dist/cli-new.js registry list     # List available components
 ## Development Commands
 
 ```bash
+# Install & Setup
+npm install            # Install all dependencies (includes frontend via postinstall)
+
+# Development
 npm run build          # TypeScript compilation
-npm run dev            # Development mode (if available)  
-npm run lint           # Code linting (if available)
-npm run test           # Run tests (if available)
+npm run dev            # CLI development mode
+npm run web            # Start Web UI (Backend: 3301, Frontend: 3300)
+npm run dev:server     # Backend server only
+npm run dev:frontend   # Frontend only
+npm run lint           # Code linting
+npm run typecheck      # TypeScript type checking
+npm run test           # Run tests
+
+# Cleanup Commands
+npm run clean          # Clean root (dist, node_modules, package-lock.json)
+npm run clean:frontend # Clean frontend directory
+npm run clean:db       # Remove SQLite database files
+npm run clean:snapshots # Remove snapshots directory
+npm run clean:code     # Clean all code directories (root + frontend)
+npm run clean:all      # Nuclear option - clean everything (code + data)
+
+# Reset Commands  
+npm run reinstall      # Safe reinstall - cleans code, preserves data
+npm run reset:db       # Remove database (auto-recreated on server start)
+npm run reset:all      # Complete reset - removes everything and reinstalls
+
+# Database Management
+npm run migrate:db     # Migrate JSON configs to SQLite
+npm run migrate:db:dry # Preview migration without making changes
+npm run migrate:db:cleanup # Run database cleanup operations
 ```
+
+### Important Notes on Cleanup Scripts
+
+- **postinstall**: Automatically runs `cd src/web/frontend && npm install` after root install
+- **reinstall**: Safe option that preserves your database and snapshots
+- **reset:all**: Complete fresh start - use with caution as it deletes all data
 
 ## First-Time User Experience
 
@@ -453,6 +493,10 @@ After cleanup (as of Dec 2025):
    - **Cause**: Generated OpenAPI schema had empty servers array
    - **Fix**: Always provide default server URL and extract path from full URL
 
+11. **"Cannot find package '@vitejs/plugin-react'"**
+   - **Cause**: Frontend dependencies not installed after cloning/npm install
+   - **Fix**: Added `postinstall` script to automatically install frontend deps
+
 ### Migration Lessons:
 
 - **Always backup** before major data migrations
@@ -474,6 +518,16 @@ node scripts/cleanup-database.js           # Execute cleanup
 # If React UI breaks
 npm run build  # Recompile TypeScript
 # Check browser console for import/null reference errors
+
+# If dependencies are broken
+npm run reinstall  # Safe - preserves data
+npm run reset:all  # Nuclear - removes everything
+
+# Fresh clone setup
+git clone <repo>
+cd api-snapshot-verifier
+npm install  # Automatically installs frontend deps too
+npm run web  # Start the application
 ```
 
 ## Postman Import Feature Details
