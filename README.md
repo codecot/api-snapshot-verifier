@@ -408,24 +408,56 @@ Exit codes:
 ## Development
 
 ```bash
-# Install dependencies
+# Install dependencies (includes frontend)
 npm install
 
+# Run web UI (recommended)
+npm run web              # Backend on 3301, Frontend on 3300
+
 # Run in development mode
-npm run dev
+npm run dev              # CLI development
+npm run dev:server       # Backend only
+npm run dev:frontend     # Frontend only
 
 # Build
 npm run build
 
-# Run tests
-npm test
+# Testing
+npm test                 # Run tests
+npm run lint             # Lint code
+npm run typecheck        # Type check
 
-# Lint
-npm run lint
+# Cleanup commands
+npm run clean            # Clean root (dist, node_modules, package-lock.json)
+npm run clean:frontend   # Clean frontend
+npm run clean:db         # Remove database
+npm run clean:snapshots  # Remove snapshots directory
+npm run clean:code       # Clean all code (root + frontend)
+npm run clean:all        # Clean everything (code + data)
 
-# Type check
-npm run typecheck
+# Reset commands
+npm run reinstall        # Clean code and reinstall dependencies
+npm run reset:db         # Remove database (recreated on server start)
+npm run reset:all        # Full reset (clean everything + reinstall)
+
+# Database management
+npm run migrate:db       # Migrate from JSON to SQLite
+npm run migrate:db:dry   # Preview migration (dry run)
+npm run migrate:db:cleanup # Run database cleanup
 ```
+
+### Cleanup Script Details
+
+- **`clean`**: Removes build artifacts and dependencies from root
+- **`clean:frontend`**: Removes build artifacts and dependencies from frontend
+- **`clean:db`**: Removes SQLite database files (snapshots.db)
+- **`clean:snapshots`**: Removes captured snapshot files
+- **`clean:code`**: Cleans only code directories (preserves data)
+- **`clean:all`**: Nuclear option - removes all code and data
+
+- **`reinstall`**: Safe reinstall - cleans code but preserves your database and snapshots
+- **`reset:db`**: Removes database only (auto-recreated on server start)
+- **`reset:all`**: Complete fresh start - removes everything and reinstalls
 
 ## License
 

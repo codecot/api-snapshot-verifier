@@ -23,7 +23,17 @@
     "typecheck": "tsc --noEmit",
     "migrate:db": "node dist/scripts/migrate-to-database.js",
     "migrate:db:dry": "node dist/scripts/migrate-to-database.js --dry-run",
-    "migrate:db:cleanup": "node dist/scripts/migrate-to-database.js --cleanup"
+    "migrate:db:cleanup": "node dist/scripts/migrate-to-database.js --cleanup",
+    "postinstall": "cd src/web/frontend && npm install",
+    "clean": "rm -rf dist node_modules package-lock.json",
+    "clean:frontend": "cd src/web/frontend && rm -rf dist node_modules package-lock.json",
+    "clean:db": "rm -f snapshots.db snapshots.db-journal",
+    "clean:snapshots": "rm -rf snapshots",
+    "clean:all": "npm run clean && npm run clean:frontend && npm run clean:db && npm run clean:snapshots",
+    "clean:code": "npm run clean && npm run clean:frontend",
+    "reinstall": "npm run clean:code && npm install",
+    "reset:db": "npm run clean:db && echo 'Database removed. It will be recreated on next server start.'",
+    "reset:all": "npm run clean:all && npm install && echo 'Full reset complete. Start the server to create a fresh database.'"
   },
   "bin": {
     "api-snapshot": "./dist/cli.js"
