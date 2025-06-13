@@ -164,6 +164,14 @@ export class WebServer {
     await this.app.register(snapshotRoutes, { prefix: '/api/snapshots' });
     await this.app.register(pluginRoutes, { prefix: '/api/plugins' });
     await this.app.register(statusRoutes, { prefix: '/api/status' });
+    
+    // Parameter management routes
+    const { parameterRoutes } = await import('./routes/parameters.js');
+    await this.app.register(parameterRoutes, { prefix: '/api/parameters' });
+    
+    // Space management routes
+    const { spacesRoutes } = await import('./routes/spaces.js');
+    await this.app.register(spacesRoutes, { prefix: '/api/spaces' });
 
     // Health check
     this.app.get('/health', async (request, reply) => {
@@ -207,23 +215,33 @@ export class WebServer {
   }
 
   private setupWebSocketHandlers(): void {
+    this.logger.info('🔌 Setting up WebSocket handlers...');
+    
     (this.app as any).io.on('connection', (socket: any) => {
-      this.logger.info(`Client connected: ${socket.id}`);
+      this.logger.info(`🔗 WebSocket client connected: ${socket.id}`);
 
       // Join rooms for real-time updates
       socket.on('join:snapshots', () => {
         socket.join('snapshots');
-        this.logger.debug(`Client ${socket.id} joined snapshots room`);
+        this.logger.info(`📡 Client ${socket.id} joined snapshots room`);
       });
 
       socket.on('join:comparisons', () => {
         socket.join('comparisons');
-        this.logger.debug(`Client ${socket.id} joined comparisons room`);
+        this.logger.info(`📡 Client ${socket.id} joined comparisons room`);
       });
 
-      socket.on('disconnect', () => {
-        this.logger.info(`Client disconnected: ${socket.id}`);
+      socket.on('disconnect', (reason: string) => {
+        this.logger.info(`❌ WebSocket client disconnected: ${socket.id}, reason: ${reason}`);
       });
+
+      socket.on('error', (error: any) => {
+        this.logger.error(`🚫 WebSocket error for client ${socket.id}:`, error);
+      });
+    });
+
+    (this.app as any).io.on('connect_error', (error: any) => {
+      this.logger.error('🚫 WebSocket connection error:', error);
     });
   }
 
@@ -264,7 +282,8 @@ export class WebServer {
 
       this.logger.info(`🚀 Web server started at http://${this.config.host}:${this.config.port}`);
       this.logger.info(`📊 API documentation available at http://${this.config.host}:${this.config.port}/api-docs`);
-      this.logger.info(`💾 WebSocket server running on port ${this.config.port}`);
+      this.logger.info(`💾 WebSocket server running on http://${this.config.host}:${this.config.port}/socket.io/`);
+      this.logger.info(`🔌 WebSocket endpoint: ws://${this.config.host}:${this.config.port}/socket.io/`);
     } catch (error) {
       this.logger.error('Failed to start server:', error);
       throw error;

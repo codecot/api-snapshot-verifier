@@ -1,21 +1,40 @@
 # Claude Code Context - API Snapshot Verifier
 
 ## Project Overview
+
 API Snapshot Verifier - A comprehensive tool for tracking and diffing real-time API changes with schema validation, built with a plugin-extensible architecture.
 
 ## Current Status
-**✅ COMPLETED: Plugin Architecture Refactoring**
+
+✅ COMPLETED: Plugin Architecture Refactoring
+✅ COMPLETED: Database Migration & Cleanup System
+✅ COMPLETED: React UI Bug Fixes
+✅ COMPLETED: Postman Collection Import (June 2025)
 
 Successfully refactored the monolithic CLI into a fully plugin-extensible architecture with:
+
 - Dependency injection container
 - Plugin manager with dynamic loading
 - Type-safe registries for all plugin types
 - Isolated command modules
 - Built-in plugins for auth, formatting, storage, and diffing
 
+**Database Migration Completed (Dec 2025):**
+- Migrated from file-based JSON storage to SQLite database
+- Fixed space synchronization issues that caused endpoint disappearance
+- Cleaned up inconsistent and orphaned data
+- Updated API routes to use DatabaseConfigManager instead of ConfigManager
+
+**Postman Import Feature Added (June 2025):**
+- Full support for Postman Collection v2.1 format
+- Converts Postman requests to API endpoints
+- Handles nested folders, variables, auth, and request bodies
+- Seamless integration with existing OpenAPI import UI
+
 ## Architecture Overview
 
 ### Core Components
+
 - **Application** (`src/core/application.ts`) - Main orchestrator class
 - **DI Container** (`src/core/container.ts`) - Dependency injection with singleton support
 - **Plugin Manager** (`src/core/plugin-manager.ts`) - Dynamic plugin lifecycle management
@@ -23,7 +42,9 @@ Successfully refactored the monolithic CLI into a fully plugin-extensible archit
 - **Interfaces** (`src/core/interfaces.ts`) - Comprehensive interface definitions
 
 ### Plugin System
+
 The application supports 6 plugin types:
+
 1. **Auth Providers** - Authentication strategies
 2. **Storage Providers** - Data persistence backends
 3. **Diff Providers** - Comparison algorithms
@@ -32,18 +53,22 @@ The application supports 6 plugin types:
 6. **Commands** - CLI command implementations
 
 ### Built-in Plugins
+
 - **Auth**: Bearer, API Key, Basic authentication
 - **Formatters**: Table, JSON, Markdown output
 - **Storage**: Filesystem provider
 - **Diff**: JSON diff engine
 
 ### Command System
+
 Commands are isolated modules that extend `BaseCommand` and are dynamically registered:
+
 - `InitCommand` - Configuration initialization
 - `CaptureCommand` - API snapshot capture
 - `CompareCommand` - Snapshot comparison
 
 ## Directory Structure
+
 ```
 src/
 ├── core/                    # Core architecture
@@ -66,21 +91,80 @@ src/
 │   ├── storage-provider.ts # File system storage
 │   ├── diff-provider.ts  # JSON diff implementation
 │   └── snapshot-service.ts # Snapshot orchestration
+├── utils/                # Utility functions
+│   └── postman-converter.ts # Postman to endpoint converter
+├── database/             # SQLite database system (NEW)
+│   ├── database-service.ts        # Core database operations
+│   ├── database-config-manager.ts # Database-based ConfigManager
+│   ├── migration-service.ts       # JSON-to-Database migration
+│   ├── cleanup-service.ts         # Database cleanup utilities
+│   └── schema.sql                 # SQLite schema definition
+├── web/                  # Web UI components
+│   ├── frontend/         # React frontend (port 3300)
+│   │   ├── src/pages/Dashboard.tsx    # Fixed React rendering errors
+│   │   ├── src/pages/Endpoints.tsx    # Fixed null parameter handling
+│   │   ├── src/pages/Parameters.tsx   # Space parameter management
+│   │   ├── src/pages/SpaceManagement.tsx # Fixed cache issues with React Query
+│   │   └── src/components/OpenAPIImport.tsx # Supports OpenAPI & Postman import
+│   └── routes/           # Backend API routes (port 3301)
+│       ├── config-simple.ts          # Updated to use DatabaseConfigManager
+│       └── snapshots-simple.ts       # Snapshot management routes
 ├── cli-new.ts           # New CLI entry point
-├── config.ts            # Configuration management
+├── config.ts            # Configuration management (legacy)
 ├── schema-manager.ts    # OpenAPI/JSON schema handling
 └── types.ts             # TypeScript type definitions
 ```
 
 ## Recent Changes Made
 
-### Fixed Issues
-1. **Service Registration Conflict** - Resolved duplicate STORAGE service key registration
-2. **TypeScript Compilation** - Fixed all type errors in SchemaManager and Application
-3. **Error Handling** - Proper error type checking throughout codebase
-4. **Missing Dependencies** - Added `yaml` package for OpenAPI schema support
+### Database Migration & UI Fixes (Dec 2025)
 
-### Key Fixes Applied
+1. **React UI Bug Fixes**
+   - Fixed "Objects are not valid as a React child" error in Dashboard.tsx (missing Loader2 import)
+   - Fixed null parameter handling in Endpoints.tsx (added proper null checks)
+   - All React rendering errors resolved
+
+2. **Database Migration System**
+   - Created comprehensive SQLite schema with foreign key constraints
+   - Implemented DatabaseService with full CRUD operations
+   - Built DatabaseConfigManager as drop-in replacement for file-based ConfigManager
+   - Successfully migrated 12 spaces and 23 endpoints from JSON files
+
+3. **Database Cleanup System**
+   - Created DatabaseCleanupService to remove inconsistent data
+   - Automated cleanup script: `scripts/cleanup-database.js`
+   - Removed 3 empty spaces, renamed inconsistent spaces, merged duplicates
+   - Final state: 9 clean spaces with consistent naming
+
+4. **API Route Updates**
+   - Updated config-simple.ts to use DatabaseConfigManager
+   - Fixed space name mapping logic ("default" space handling)
+   - All API endpoints now use SQLite database instead of file storage
+
+### Latest Session Changes (June 13, 2025)
+
+1. **Space Parameter Cache Issues Fixed**
+   - Converted SpaceManagement.tsx to use React Query for data fetching
+   - Added proper cache invalidation in Parameters.tsx
+   - Set staleTime to 0 to ensure fresh space statistics
+
+2. **OpenAPI Import Fixes**
+   - Replaced all ConfigManager instances with DatabaseConfigManager
+   - Fixed "saveConfig is not a function" error
+   - Added direct database operations for endpoint management
+   - Added URL import feature with proxy endpoint to avoid CORS
+
+3. **Postman Collection Import**
+   - Created postman-converter.ts utility with comprehensive type support
+   - Added file type detection (OpenAPI vs Postman)
+   - Converts Postman variables {{var}} to our format {var}
+   - Handles auth, headers, body, and nested folders
+   - Fixed "Cannot read properties of undefined (reading 'url')" error by:
+     - Extracting path portion from full URLs
+     - Ensuring default server URL in generated OpenAPI schema
+
+### Previous Plugin Architecture Fixes
+
 - Added `auth` property to `ApiEndpoint` interface in `types.ts`
 - Fixed error handling with proper `instanceof Error` checks
 - Added `SNAPSHOT_SERVICE` to service keys
@@ -88,13 +172,16 @@ src/
 - Added definite assignment assertions for Application class properties
 
 ## Build & Test Status
+
 - ✅ TypeScript compilation: `npm run build` succeeds
 - ✅ CLI functionality: All commands working (`init`, `capture`, `compare`)
 - ✅ Container initialization: DI system functioning correctly
 - ✅ Plugin registration: Built-in plugins loading successfully
 
 ## Configuration
+
 Current test configuration in `api-snapshot.config.json`:
+
 ```json
 {
   "endpoints": [
@@ -130,6 +217,7 @@ Current test configuration in `api-snapshot.config.json`:
 ```
 
 ## CLI Usage
+
 ```bash
 # Main commands
 node dist/cli-new.js init              # Initialize configuration
@@ -146,14 +234,56 @@ node dist/cli-new.js registry list     # List available components
 ```
 
 ## Development Commands
+
 ```bash
 npm run build          # TypeScript compilation
-npm run dev            # Development mode (if available)
+npm run dev            # Development mode (if available)  
 npm run lint           # Code linting (if available)
 npm run test           # Run tests (if available)
 ```
 
+## Database Management Commands
+
+```bash
+# Database cleanup and maintenance
+node scripts/cleanup-database.js --dry-run    # Preview cleanup changes
+node scripts/cleanup-database.js --show-state # Show current state + cleanup
+node scripts/cleanup-database.js             # Execute cleanup
+
+# Migration (if needed)
+node scripts/migrate-to-database.js          # Migrate JSON configs to SQLite
+```
+
+## API Endpoints
+
+Backend server runs on **port 3301** with these key endpoints:
+
+```bash
+# Spaces management
+GET  /api/config/spaces                    # List all spaces
+POST /api/config/spaces                    # Create new space
+
+# Endpoints management  
+GET  /api/config/endpoints?space=default   # Get endpoints for space
+POST /api/config/endpoints?space=default   # Add endpoint to space
+
+# Configuration
+GET  /api/config?space=default             # Get space configuration
+PUT  /api/config?space=default             # Update space configuration
+
+# Import/Export
+POST /api/config/import-openapi?space=default # Import OpenAPI/Postman schema
+GET  /api/config/fetch-openapi?url=...       # Proxy for fetching external schemas
+
+# Parameters
+GET  /api/parameters/space/:space          # Get space parameters
+POST /api/parameters/space/:space          # Add space parameter
+PUT  /api/parameters/space/:space/:name    # Update space parameter
+DELETE /api/parameters/space/:space/:name  # Delete space parameter
+```
+
 ## Next Potential Tasks
+
 1. **Plugin Registry Implementation** - Complete the plugin/registry list commands
 2. **External Plugin Loading** - Support for loading plugins from npm packages
 3. **Advanced Diff Rules** - More sophisticated comparison rules
@@ -163,22 +293,126 @@ npm run test           # Run tests (if available)
 7. **Documentation** - API docs and plugin development guide
 
 ## Important Notes
-- The old CLI (`src/cli.ts`) still exists but new development uses `src/cli-new.ts`
-- All git files are untracked and ready for commit when ready
-- The architecture supports hot-swapping plugins without restart
-- Service keys are defined as symbols for type safety
-- Plugin context provides access to container, config, and logger
 
-## Git Status
-```
-Untracked files:
-  src/cli-new.ts
-  src/commands/
-  src/core/
-  src/plugins/
-  src/services/
-```
+- **Database Storage**: Now uses SQLite database (`./snapshots.db`) instead of JSON files
+- **Legacy Support**: Old ConfigManager still exists but DatabaseConfigManager is preferred
+- **Space Naming**: Cleaned up inconsistent space names (no more "default space", "mono 1")
+- **API Integration**: All web routes use DatabaseConfigManager for consistent data access
+- **Plugin Architecture**: Supports hot-swapping plugins without restart
+- **Service Keys**: Defined as symbols for type safety
+- **Error Handling**: React UI errors fixed, proper null checking implemented
 
-Ready for commit when the refactoring is complete and tested.
+## Database Schema
+
+Key tables in SQLite database:
+- `spaces` - Configuration spaces (environments)
+- `endpoints` - API endpoints within spaces  
+- `space_parameters` - Space-level parameters for templating
+- `snapshots` - Snapshot metadata and history
+- `config_settings` - Global configuration settings
+
+Foreign key constraints ensure data integrity and automatic cleanup.
+
+## Current Database State
+
+After cleanup (as of Dec 2025):
+- **9 spaces**: default, development, mono, mynewspace, production, staging, test-consistency, testing, tuti-frutti
+- **23 endpoints** total across all spaces
+- **0 orphaned data** - all cleaned up
+- **Consistent naming** throughout
 
 ## UI Roadmap
+
+## Claude Memory
+
+- **User Constraints**: Don't kill/start/restart node processes - user manages them
+- **Multi-project Host**: User has multiple projects running simultaneously  
+- **Port Configuration**: Backend on 3301, Frontend on 3300
+
+## Troubleshooting Knowledge
+
+### Common Issues Resolved:
+
+1. **"Objects are not valid as a React child"** 
+   - **Cause**: Missing import for React components (e.g., Loader2)
+   - **Fix**: Add missing imports from lucide-react or other component libraries
+
+2. **"All endpoints disappeared from spaces"**
+   - **Cause**: File-based storage synchronization issues between spaces
+   - **Fix**: Migrated to SQLite database for reliable data persistence
+
+3. **"Space 'default' does not exist"**
+   - **Cause**: Space name mapping inconsistencies ("default" vs "default space")
+   - **Fix**: Database cleanup + consistent API space name handling
+
+4. **Parameter handling errors in React**
+   - **Cause**: Null/undefined parameter objects not properly checked
+   - **Fix**: Add `param &&` checks before Object.entries() calls
+
+5. **Space statistics not updating after parameter changes**
+   - **Cause**: React Query cache not invalidating properly
+   - **Fix**: Convert to React Query with `staleTime: 0` and manual cache invalidation
+
+6. **"Config file not found" error during OpenAPI import**
+   - **Cause**: Old file-based ConfigManager still being used
+   - **Fix**: Replace with DatabaseConfigManager throughout config-simple.ts
+
+7. **"configManager.saveConfig is not a function"**
+   - **Cause**: DatabaseConfigManager doesn't have saveConfig method
+   - **Fix**: Use direct database operations (createEndpoint, updateEndpoint, etc.)
+
+8. **"Cannot read properties of undefined (reading 'url')" in Postman import**
+   - **Cause**: Generated OpenAPI schema had empty servers array
+   - **Fix**: Always provide default server URL and extract path from full URL
+
+### Migration Lessons:
+
+- **Always backup** before major data migrations
+- **Use dry-run mode** for database cleanup operations  
+- **Test API endpoints** after backend changes
+- **Foreign key constraints** prevent orphaned data automatically
+- **Space naming consistency** is critical for UI/API integration
+
+## Quick Recovery Commands
+
+```bash
+# If database gets corrupted
+node scripts/migrate-to-database.js  # Re-migrate from JSON backups
+
+# If spaces are inconsistent  
+node scripts/cleanup-database.js --dry-run  # Preview cleanup
+node scripts/cleanup-database.js           # Execute cleanup
+
+# If React UI breaks
+npm run build  # Recompile TypeScript
+# Check browser console for import/null reference errors
+```
+
+## Postman Import Feature Details
+
+### How It Works
+1. **File Type Detection**: Checks for `info.schema` containing "collection"
+2. **Variable Conversion**: Transforms `{{variable}}` to `{variable}` format
+3. **Folder Structure**: Flattens nested folders into endpoint names (e.g., "User Management/Get Users" → "user-management/get-users")
+4. **Authentication Mapping**:
+   - Bearer token → auth.type: 'bearer'
+   - Basic auth → auth.type: 'basic'
+   - API Key → auth.type: 'api-key'
+5. **Request Body Handling**:
+   - Raw bodies preserved with auto-detected Content-Type
+   - URL-encoded and form-data converted appropriately
+6. **URL Processing**:
+   - Extracts path from full URLs for OpenAPI compatibility
+   - Applies baseUrl if URL is relative
+   - Substitutes collection variables where values are known
+
+### Implementation Files
+- `src/utils/postman-converter.ts` - Core conversion logic
+- `src/web/frontend/src/components/OpenAPIImport.tsx` - UI integration
+- Inline conversion in frontend to avoid circular dependencies
+
+### Known Limitations
+- YAML files not yet supported (JSON only)
+- GraphQL request bodies not handled
+- File uploads in form-data not preserved
+- Pre-request scripts and tests ignored

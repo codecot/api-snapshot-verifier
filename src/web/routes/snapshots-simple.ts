@@ -31,26 +31,154 @@ async function snapshotRoutes(fastify: FastifyInstance) {
   // GET /api/snapshots - List all snapshots
   fastify.get('/', async (request: FastifyRequest & { logger?: any }, reply: FastifyReply) => {
     try {
-      // Mock data for now
-      const snapshots = [
-        {
-          id: 'snap-1',
-          endpoint: 'example-api',
-          timestamp: '2025-01-06T10:00:00Z',
-          status: 'success'
-        },
-        {
-          id: 'snap-2', 
-          endpoint: 'example-api',
-          timestamp: '2025-01-06T09:00:00Z',
-          status: 'success'
+      const { space } = request.query as { space?: string };
+      
+      // Check if the space exists first
+      if (space) {
+        const { DatabaseConfigManager } = await import('../../database/database-config-manager.js');
+        const configManager = new DatabaseConfigManager();
+        
+        if (!configManager.spaceExists(space)) {
+          reply.status(404);
+          return {
+            success: false,
+            error: 'Space not found',
+            message: `Space '${space}' does not exist. Create it first using POST /api/config/spaces`,
+            timestamp: new Date().toISOString()
+          };
         }
-      ];
+        
+        // Try to read actual snapshot files for this space
+        try {
+          const fs = await import('fs');
+          const path = await import('path');
+          
+          // Sanitize space name for safe directory access
+          const sanitizedSpace = space.replace(/[^a-zA-Z0-9_-]/g, '_');
+          const snapshotDir = sanitizedSpace ? `./snapshots/${sanitizedSpace}` : './snapshots';
+          
+          if (fs.existsSync(snapshotDir)) {
+            const files = fs.readdirSync(snapshotDir)
+              .filter(file => file.endsWith('.json'))
+              .sort((a, b) => b.localeCompare(a)); // Sort by newest first
+            
+            const snapshots = [];
+            
+            for (const file of files) {
+              try {
+                const filePath = path.join(snapshotDir, file);
+                const fileContent = fs.readFileSync(filePath, 'utf-8');
+                const snapshotData = JSON.parse(fileContent);
+                
+                // Extract relevant info for the API
+                snapshots.push({
+                  id: file.replace('.json', ''),
+                  endpoint: snapshotData.endpoint?.name || 'unknown',
+                  timestamp: snapshotData.timestamp,
+                  status: (snapshotData.response?.status >= 200 && snapshotData.response?.status < 300) ? 'success' : 'error',
+                  url: snapshotData.endpoint?.url,
+                  method: snapshotData.endpoint?.method,
+                  responseStatus: snapshotData.response?.status,
+                  error: snapshotData.error
+                });
+              } catch (parseError) {
+                console.warn(`Failed to parse snapshot file ${file}:`, parseError);
+              }
+            }
+            
+            return {
+              success: true,
+              data: snapshots,
+              count: snapshots.length,
+              space: space || 'default',
+              timestamp: new Date().toISOString()
+            };
+          }
+        } catch (fsError) {
+          console.warn('Failed to read snapshot files:', fsError);
+        }
+      }
+      
+      // Generate mock data only for specific established spaces
+      const getSnapshotsForSpace = (spaceName: string) => {
+        // Only return mock data for pre-existing demo spaces
+        if (spaceName === 'development' || spaceName === 'default') {
+          return [
+            {
+              id: `${spaceName}-snap-1`,
+              endpoint: 'example-api',
+              timestamp: '2025-01-06T10:00:00Z',
+              status: 'success'
+            },
+            {
+              id: `${spaceName}-snap-2`, 
+              endpoint: 'example-api',
+              timestamp: '2025-01-06T09:00:00Z',
+              status: 'success'
+            }
+          ];
+        } else if (spaceName === 'staging') {
+          return [
+            {
+              id: `${spaceName}-snap-1`,
+              endpoint: 'staging-api',
+              timestamp: '2025-01-06T10:00:00Z',
+              status: 'success'
+            },
+            {
+              id: `${spaceName}-snap-2`,
+              endpoint: 'staging-api',
+              timestamp: '2025-01-06T09:00:00Z',
+              status: 'success'
+            },
+            {
+              id: `${spaceName}-snap-3`,
+              endpoint: 'staging-users',
+              timestamp: '2025-01-06T08:00:00Z',
+              status: 'success'
+            }
+          ];
+        } else if (spaceName === 'production') {
+          return [
+            {
+              id: `${spaceName}-snap-1`,
+              endpoint: 'prod-api',
+              timestamp: '2025-01-06T10:00:00Z',
+              status: 'success'
+            },
+            {
+              id: `${spaceName}-snap-2`,
+              endpoint: 'prod-api', 
+              timestamp: '2025-01-06T09:00:00Z',
+              status: 'error'
+            },
+            {
+              id: `${spaceName}-snap-3`,
+              endpoint: 'health-check',
+              timestamp: '2025-01-06T08:00:00Z',
+              status: 'success'
+            },
+            {
+              id: `${spaceName}-snap-4`,
+              endpoint: 'health-check',
+              timestamp: '2025-01-06T07:00:00Z',
+              status: 'success'
+            }
+          ];
+        }
+
+        // For any other space (newly created), return empty array
+        return [];
+      };
+
+      // For now, return empty snapshots since there are no real snapshots in the database yet
+      const snapshots: any[] = [];
       
       return {
         success: true,
         data: snapshots,
-        count: snapshots.length
+        count: snapshots.length,
+        space: space || 'default'
       };
     } catch (error) {
       (request as any).logger?.error('Failed to list snapshots:', error);
@@ -161,23 +289,406 @@ async function snapshotRoutes(fastify: FastifyInstance) {
  *       500:
  *         $ref: '#/components/responses/InternalServerError'
  */
-  // POST /api/snapshots/capture - Capture new snapshots
+  // POST /api/snapshots/capture - Capture new snapshots (default space or with query param)
   fastify.post('/capture', async (request: FastifyRequest & { logger?: any }, reply: FastifyReply) => {
     try {
-      // For now, just return a success response
-      const response = {
-        success: true,
-        message: 'Snapshot capture started',
-        jobId: Date.now().toString()
-      };
+      const { space } = request.query as { space?: string };
+      const { endpoints } = request.body as { endpoints?: string[] };
+      const targetSpace = space || 'default';
       
-      // Emit via WebSocket if available
+      // Check if the space exists first
+      const { DatabaseConfigManager } = await import('../../database/database-config-manager.js');
+      const configManager = new DatabaseConfigManager();
+      
+      if (!configManager.spaceExists(targetSpace)) {
+        reply.status(404);
+        return {
+          success: false,
+          error: 'Space not found',
+          message: `Space '${targetSpace}' does not exist. Create it first using POST /api/config/spaces`,
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      // Get the core application from request context
+      const coreApp = (request as any).coreApp;
+      if (!coreApp) {
+        reply.status(500);
+        return {
+          success: false,
+          error: 'Core application not available',
+          message: 'Internal server error',
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      // Load configuration for the specific space
+      const spaceConfig = configManager.loadConfig(undefined, targetSpace);
+      
+      // Filter endpoints if specific ones are requested
+      let endpointsToCapture = spaceConfig.endpoints;
+      if (endpoints && endpoints.length > 0) {
+        endpointsToCapture = spaceConfig.endpoints.filter(endpoint => 
+          endpoints.includes(endpoint.name)
+        );
+        
+        if (endpointsToCapture.length === 0) {
+          reply.status(400);
+          return {
+            success: false,
+            error: 'No matching endpoints found',
+            message: `None of the requested endpoints [${endpoints.join(', ')}] exist in space '${targetSpace}'`,
+            timestamp: new Date().toISOString()
+          };
+        }
+      }
+      
+      // Create a space-aware snapshot service
+      const { ServiceKeys } = await import('../../core/container.js');
+      const { DefaultSnapshotService } = await import('../../services/snapshot-service.js');
+      
+      // Get dependencies from container
+      const httpClient = await coreApp.getContainer().resolve(ServiceKeys.HTTP_CLIENT);
+      const storageProvider = await coreApp.getContainer().resolve(ServiceKeys.STORAGE);
+      const authRegistry = await coreApp.getContainer().resolve(ServiceKeys.AUTH_REGISTRY);
+      const schemaManager = await coreApp.getContainer().resolve(ServiceKeys.SCHEMA_MANAGER);
+      
+      // Create space-specific snapshot service
+      const snapshotService = new DefaultSnapshotService(
+        httpClient,
+        storageProvider,
+        authRegistry,
+        schemaManager,
+        endpointsToCapture,
+        (request as any).logger || console,
+        targetSpace
+      );
+      
+      (request as any).logger?.info(`Starting snapshot capture for space '${targetSpace}' with ${endpointsToCapture.length} endpoint(s):`, endpointsToCapture.map(e => e.name));
+      
+      // Start capture process asynchronously
+      const capturePromise = (async () => {
+        const results = [];
+        
+        for (const endpoint of endpointsToCapture) {
+          try {
+            const result = await snapshotService.captureSnapshot(endpoint);
+            
+            if (result.success && result.snapshot) {
+              // Save the snapshot using space-specific storage provider
+              const { FileSystemStorageProvider } = await import('../../services/storage-provider.js');
+              
+              // Sanitize space name to prevent path traversal
+              const sanitizedSpace = targetSpace.replace(/[^a-zA-Z0-9_-]/g, '_');
+              if (sanitizedSpace !== targetSpace) {
+                (request as any).logger?.warn(`Space name sanitized from '${targetSpace}' to '${sanitizedSpace}'`);
+              }
+              
+              const spaceAwareStorage = new FileSystemStorageProvider(
+                sanitizedSpace !== 'default' ? `./snapshots/${sanitizedSpace}` : './snapshots',
+                sanitizedSpace !== 'default' ? `./snapshots/${sanitizedSpace}/baseline` : './snapshots/baseline'
+              );
+              
+              const filePath = await spaceAwareStorage.saveSnapshot(result.snapshot, false);
+              console.log(`📁 Snapshot saved to: ${filePath} for space: ${targetSpace}`);
+              
+              results.push({
+                endpoint: endpoint.name,
+                success: true,
+                snapshotId: `${endpoint.name}_${Date.now()}`,
+                timestamp: result.snapshot.timestamp
+              });
+              
+              (request as any).logger?.info(`✅ Snapshot captured for endpoint '${endpoint.name}' in space '${targetSpace}'`);
+            } else {
+              results.push({
+                endpoint: endpoint.name,
+                success: false,
+                error: result.error || 'Unknown error'
+              });
+              
+              (request as any).logger?.warn(`❌ Failed to capture snapshot for endpoint '${endpoint.name}' in space '${targetSpace}': ${result.error}`);
+            }
+          } catch (error) {
+            results.push({
+              endpoint: endpoint.name,
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            
+            (request as any).logger?.error(`❌ Error capturing snapshot for endpoint '${endpoint.name}' in space '${targetSpace}':`, error);
+          }
+        }
+        
+        return results;
+      })();
+      
+      // Emit WebSocket event when capture starts
       if ((fastify as any).io) {
-        (fastify as any).io.to('snapshots').emit('capture:complete', {
-          success: true,
+        (fastify as any).io.to('snapshots').emit('capture:started', {
+          space: targetSpace,
+          endpoints: endpointsToCapture.map(e => e.name),
           timestamp: new Date().toISOString()
         });
+        
+        // Emit completion event when done
+        capturePromise.then((results) => {
+          (fastify as any).io.to('snapshots').emit('capture:complete', {
+            space: targetSpace,
+            results,
+            successful: results.filter(r => r.success).length,
+            failed: results.filter(r => !r.success).length,
+            timestamp: new Date().toISOString()
+          });
+        }).catch((error) => {
+          (fastify as any).io.to('snapshots').emit('capture:error', {
+            space: targetSpace,
+            error: error.message,
+            timestamp: new Date().toISOString()
+          });
+        });
       }
+      
+      // Return immediate response
+      const response = {
+        success: true,
+        message: `Snapshot capture started for space '${targetSpace}' with ${endpointsToCapture.length} endpoint(s)`,
+        jobId: Date.now().toString(),
+        space: targetSpace,
+        endpoints: endpointsToCapture.map(e => e.name),
+        timestamp: new Date().toISOString()
+      };
+      
+      return response;
+    } catch (error) {
+      (request as any).logger?.error('Failed to start capture:', error);
+      reply.status(500);
+      return {
+        success: false,
+        error: 'Failed to start capture',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  });
+
+/**
+ * @swagger
+ * /api/snapshots/capture/{space}:
+ *   post:
+ *     summary: Capture new snapshots for specific space
+ *     tags: [Snapshots]
+ *     parameters:
+ *       - in: path
+ *         name: space
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Space/environment name
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               endpoints:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Specific endpoint names to capture (optional)
+ *     responses:
+ *       200:
+ *         description: Snapshot capture started successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     jobId:
+ *                       type: string
+ *                       description: Capture job ID
+ *                     space:
+ *                       type: string
+ *                       description: Space name
+ *                     endpoints:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: Endpoints being captured
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+  // POST /api/snapshots/capture/:space - Capture new snapshots for specific space
+  fastify.post<{ Params: { space: string } }>('/capture/:space', async (request, reply) => {
+    try {
+      const { space } = request.params;
+      const { endpoints } = request.body as { endpoints?: string[] };
+      
+      // Check if the space exists first
+      const { DatabaseConfigManager } = await import('../../database/database-config-manager.js');
+      const configManager = new DatabaseConfigManager();
+      
+      if (!configManager.spaceExists(space)) {
+        reply.status(404);
+        return {
+          success: false,
+          error: 'Space not found',
+          message: `Space '${space}' does not exist. Create it first using POST /api/config/spaces`,
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      // Get the core application from request context
+      const coreApp = (request as any).coreApp;
+      if (!coreApp) {
+        reply.status(500);
+        return {
+          success: false,
+          error: 'Core application not available',
+          message: 'Internal server error',
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      // Load configuration for the specific space
+      const spaceConfig = configManager.loadConfig(undefined, space);
+      
+      // Filter endpoints if specific ones are requested
+      let endpointsToCapture = spaceConfig.endpoints;
+      if (endpoints && endpoints.length > 0) {
+        endpointsToCapture = spaceConfig.endpoints.filter(endpoint => 
+          endpoints.includes(endpoint.name)
+        );
+        
+        if (endpointsToCapture.length === 0) {
+          reply.status(400);
+          return {
+            success: false,
+            error: 'No matching endpoints found',
+            message: `None of the requested endpoints [${endpoints.join(', ')}] exist in space '${space}'`,
+            timestamp: new Date().toISOString()
+          };
+        }
+      }
+      
+      // Create a space-aware snapshot service
+      const { ServiceKeys } = await import('../../core/container.js');
+      const { DefaultSnapshotService } = await import('../../services/snapshot-service.js');
+      
+      // Get dependencies from container
+      const httpClient = await coreApp.getContainer().resolve(ServiceKeys.HTTP_CLIENT);
+      const storageProvider = await coreApp.getContainer().resolve(ServiceKeys.STORAGE);
+      const authRegistry = await coreApp.getContainer().resolve(ServiceKeys.AUTH_REGISTRY);
+      const schemaManager = await coreApp.getContainer().resolve(ServiceKeys.SCHEMA_MANAGER);
+      
+      // Create space-specific snapshot service
+      const snapshotService = new DefaultSnapshotService(
+        httpClient,
+        storageProvider,
+        authRegistry,
+        schemaManager,
+        endpointsToCapture,
+        (request as any).logger || console,
+        space
+      );
+      
+      (request as any).logger?.info(`Starting snapshot capture for space '${space}' with ${endpointsToCapture.length} endpoint(s):`, endpointsToCapture.map(e => e.name));
+      
+      // Start capture process asynchronously
+      const capturePromise = (async () => {
+        const results = [];
+        
+        for (const endpoint of endpointsToCapture) {
+          try {
+            const result = await snapshotService.captureSnapshot(endpoint);
+            
+            if (result.success && result.snapshot) {
+              // Save the snapshot using space-specific storage provider
+              const { FileSystemStorageProvider } = await import('../../services/storage-provider.js');
+              
+              // Sanitize space name to prevent path traversal
+              const sanitizedSpace = space.replace(/[^a-zA-Z0-9_-]/g, '_');
+              if (sanitizedSpace !== space) {
+                (request as any).logger?.warn(`Space name sanitized from '${space}' to '${sanitizedSpace}'`);
+              }
+              
+              const spaceAwareStorage = new FileSystemStorageProvider(
+                sanitizedSpace !== 'default' ? `./snapshots/${sanitizedSpace}` : './snapshots',
+                sanitizedSpace !== 'default' ? `./snapshots/${sanitizedSpace}/baseline` : './snapshots/baseline'
+              );
+              
+              const filePath = await spaceAwareStorage.saveSnapshot(result.snapshot, false);
+              console.log(`📁 Snapshot saved to: ${filePath} for space: ${space}`);
+              
+              results.push({
+                endpoint: endpoint.name,
+                success: true,
+                snapshotId: `${endpoint.name}_${Date.now()}`,
+                timestamp: result.snapshot.timestamp
+              });
+              
+              (request as any).logger?.info(`✅ Snapshot captured for endpoint '${endpoint.name}' in space '${space}'`);
+            } else {
+              results.push({
+                endpoint: endpoint.name,
+                success: false,
+                error: result.error || 'Unknown error'
+              });
+              
+              (request as any).logger?.warn(`❌ Failed to capture snapshot for endpoint '${endpoint.name}' in space '${space}': ${result.error}`);
+            }
+          } catch (error) {
+            results.push({
+              endpoint: endpoint.name,
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            });
+            
+            (request as any).logger?.error(`❌ Error capturing snapshot for endpoint '${endpoint.name}' in space '${space}':`, error);
+          }
+        }
+        
+        return results;
+      })();
+      
+      // Emit WebSocket event when capture starts
+      if ((fastify as any).io) {
+        (fastify as any).io.to('snapshots').emit('capture:started', {
+          space,
+          endpoints: endpointsToCapture.map(e => e.name),
+          timestamp: new Date().toISOString()
+        });
+        
+        // Emit completion event when done
+        capturePromise.then((results) => {
+          (fastify as any).io.to('snapshots').emit('capture:complete', {
+            space,
+            results,
+            successful: results.filter(r => r.success).length,
+            failed: results.filter(r => !r.success).length,
+            timestamp: new Date().toISOString()
+          });
+        }).catch((error) => {
+          (fastify as any).io.to('snapshots').emit('capture:error', {
+            space,
+            error: error.message,
+            timestamp: new Date().toISOString()
+          });
+        });
+      }
+      
+      // Return immediate response
+      const response = {
+        success: true,
+        message: `Snapshot capture started for space '${space}' with ${endpointsToCapture.length} endpoint(s)`,
+        jobId: Date.now().toString(),
+        space,
+        endpoints: endpointsToCapture.map(e => e.name),
+        timestamp: new Date().toISOString()
+      };
       
       return response;
     } catch (error) {

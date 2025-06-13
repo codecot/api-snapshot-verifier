@@ -19,9 +19,27 @@ export class AxiosHttpClient implements HttpClient {
       axiosConfig.data = config.data;
     }
 
+    // 🔍 Log the actual HTTP request being made
+    console.log(`🌐 [HTTP] ${config.method.toUpperCase()} ${config.url}`);
+    if (config.headers && Object.keys(config.headers).length > 0) {
+      console.log(`📋 [HTTP] Headers:`, config.headers);
+    }
+    if (config.data) {
+      console.log(`📦 [HTTP] Body:`, typeof config.data === 'string' ? config.data : JSON.stringify(config.data));
+    }
+
     try {
       const response: AxiosResponse = await axios(axiosConfig);
       const duration = Date.now() - startTime;
+
+      // 🔍 Log the HTTP response
+      console.log(`✅ [HTTP] ${response.status} ${response.statusText} (${duration}ms)`);
+      if (response.data) {
+        const dataPreview = typeof response.data === 'string' 
+          ? response.data.substring(0, 200) + (response.data.length > 200 ? '...' : '')
+          : JSON.stringify(response.data).substring(0, 200) + '...';
+        console.log(`📥 [HTTP] Response:`, dataPreview);
+      }
 
       return {
         status: response.status,
@@ -30,8 +48,12 @@ export class AxiosHttpClient implements HttpClient {
         duration
       };
     } catch (error) {
+      const duration = Date.now() - startTime;
+      
       if (axios.isAxiosError(error) && error.response) {
-        const duration = Date.now() - startTime;
+        console.log(`❌ [HTTP] ${error.response.status} ${error.response.statusText} (${duration}ms)`);
+        console.log(`📥 [HTTP] Error Response:`, error.response.data);
+        
         return {
           status: error.response.status,
           headers: this.normalizeHeaders(error.response.headers),
@@ -39,6 +61,10 @@ export class AxiosHttpClient implements HttpClient {
           duration
         };
       }
+      
+      // Handle connection/timeout errors
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.log(`💥 [HTTP] Request failed (${duration}ms):`, errorMessage);
       throw error;
     }
   }

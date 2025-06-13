@@ -177,7 +177,8 @@ export class Application {
         authRegistry,
         schemaManager,
         this.appConfig.config.endpoints,
-        this.logger
+        this.logger,
+        this.appConfig.config.space || this.appConfig.config.environment || 'default'
       );
     });
 
