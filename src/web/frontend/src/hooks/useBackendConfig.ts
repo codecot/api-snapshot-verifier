@@ -39,23 +39,8 @@ export function useBackendConfig() {
       }
     }
     
-    // Fallback: Auto-detect from current page URL if no stored config
-    if (!stored) {
-      const currentOrigin = window.location.origin
-      console.log('🔧 Auto-detecting backend URL from current page:', currentOrigin)
-      
-      // Force override any cached wrong URL
-      localStorage.removeItem(STORAGE_KEY)
-      
-      setConfig({
-        backendUrl: currentOrigin,
-        isConfigured: false,
-        error: null
-      })
-      
-      // Update the API client immediately
-      updateApiClientBaseUrl(currentOrigin)
-    }
+    // No stored config - user needs to configure
+    console.log('🔧 No backend configuration found - setup required')
   }, [])
 
   // Check if backend URL is available from URL parameters
@@ -128,6 +113,6 @@ export function useBackendConfig() {
     ...config,
     saveBackendUrl,
     clearBackendUrl,
-    needsSetup: !config.isConfigured && !config.backendUrl
+    needsSetup: !config.isConfigured
   }
 }

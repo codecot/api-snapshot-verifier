@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, AlertCircle, CheckCircle, Clock, RefreshCw, Share2, Settings, Loader2 } from 'lucide-react'
+import { Activity, AlertCircle, CheckCircle, Clock, RefreshCw, Share2, Settings, Loader2, Camera, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { snapshotsApi } from '@/api/snapshots'
@@ -22,16 +22,18 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
   
-  const { data: snapshotsResponse, refetch: refetchSnapshots } = useQuery({
+  const { data: snapshotsResponse, refetch: refetchSnapshots, isLoading: loadingSnapshots } = useQuery({
     queryKey: ['snapshots', currentSpace],
     queryFn: () => snapshotsApi.getAll(currentSpace),
     refetchOnWindowFocus: true, // Auto-refresh on page focus
+    enabled: !!currentSpace, // Only fetch if space is selected
   })
 
-  const { data: endpointsResponse, refetch: refetchEndpoints } = useQuery({
+  const { data: endpointsResponse, refetch: refetchEndpoints, isLoading: loadingEndpoints } = useQuery({
     queryKey: ['endpoints', currentSpace],
     queryFn: () => endpointsApi.getAll(currentSpace),
     refetchOnWindowFocus: true, // Auto-refresh on page focus
+    enabled: !!currentSpace, // Only fetch if space is selected
   })
 
   // Auto-refresh timer - adaptive based on WebSocket connectivity
@@ -110,13 +112,18 @@ export default function Dashboard() {
   }
 
   // Extract data from API response format  
-  const snapshots = (snapshotsResponse?.data && Array.isArray(snapshotsResponse.data)) ? snapshotsResponse.data : []
-  const endpoints = (endpointsResponse?.data && Array.isArray(endpointsResponse.data)) ? endpointsResponse.data : []
+  const snapshots = Array.isArray(snapshotsResponse) ? snapshotsResponse : []
+  const endpoints = Array.isArray(endpointsResponse) ? endpointsResponse : []
 
   // Calculate stats
   const successfulSnapshots = snapshots.filter((s: any) => s.status === 'success').length
   const failedSnapshots = snapshots.filter((s: any) => s.status === 'error' || s.error).length
-  const avgResponseTime = 0 // Will be calculated when we have actual response time data
+  
+  // Calculate average response time
+  const snapshotsWithTime = snapshots.filter((s: any) => s.responseTime && s.status === 'success')
+  const avgResponseTime = snapshotsWithTime.length > 0
+    ? Math.round(snapshotsWithTime.reduce((acc: number, s: any) => acc + s.responseTime, 0) / snapshotsWithTime.length)
+    : 0
 
   const stats = [
     {
@@ -153,6 +160,19 @@ export default function Dashboard() {
   const activeOperation = captureProgress.getActiveOperation(currentSpace)
   const isCapturing = activeOperation?.isActive || false
 
+  // Show message if no space is selected
+  if (!currentSpace) {
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
+        <div className="text-center">
+          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-lg font-semibold mb-2">No Space Selected</h3>
+          <p className="text-muted-foreground">Please select a space from the dropdown above to view dashboard statistics.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Thin Status Bar */}
@@ -174,10 +194,15 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-4">
           {/* WebSocket Connection Status */}
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${captureEvents.isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+          <div 
+            className="flex items-center gap-2 text-sm cursor-help"
+            title={captureEvents.isConnected 
+              ? 'Real-time updates enabled via WebSocket' 
+              : 'WebSocket disabled or unavailable - using auto-refresh polling'}
+          >
+            <div className={`w-2 h-2 rounded-full ${captureEvents.isConnected ? 'bg-green-500' : 'bg-orange-500'}`} />
             <span className="text-muted-foreground">
-              {captureEvents.isConnected ? 'Live' : 'Offline'}
+              {captureEvents.isConnected ? 'Live' : 'Polling'}
             </span>
           </div>
           
@@ -223,25 +248,42 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card 
-            key={stat.title} 
-            className={stat.title === 'Total Endpoints' ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}
-            onClick={stat.title === 'Total Endpoints' ? () => navigate('/endpoints') : undefined}
-          >
+        {stats.map((stat) => {
+          const isClickable = stat.title === 'Total Endpoints' || 
+                            stat.title === 'Successful Snapshots' || 
+                            stat.title === 'Failed Snapshots'
+          const handleClick = () => {
+            if (stat.title === 'Total Endpoints') navigate('/endpoints')
+            else if (stat.title === 'Successful Snapshots' || stat.title === 'Failed Snapshots') navigate('/snapshots')
+          }
+          
+          return (
+            <Card 
+              key={stat.title} 
+              className={isClickable ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}
+              onClick={isClickable ? handleClick : undefined}
+            >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-sm font-medium flex items-center gap-1">
                 {stat.title}
+                {isClickable && <ExternalLink className="h-3 w-3 opacity-50" />}
               </CardTitle>
               <div className={`p-2 rounded-lg ${stat.bg}`}>
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
+              <div className="text-2xl font-bold">
+                {(loadingSnapshots || loadingEndpoints) ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                ) : (
+                  stat.value
+                )}
+              </div>
             </CardContent>
           </Card>
-        ))}
+          )
+        })}
       </div>
 
       {/* Recent Activity */}
@@ -250,36 +292,61 @@ export default function Dashboard() {
           <CardTitle>Recent Snapshots</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {snapshots.slice(0, 5).map((snapshot: any) => (
-              <div
-                key={snapshot.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-2 h-2 rounded-full ${
-                      snapshot.status === 'success'
-                        ? 'bg-green-500'
-                        : 'bg-red-500'
-                    }`}
-                  />
-                  <div>
-                    <p className="font-medium">{snapshot.endpoint}</p>
-                    <p className="text-sm text-muted-foreground" title={new Date(snapshot.timestamp).toLocaleString()}>
-                      {formatRelativeTime(snapshot.timestamp)}
+          {loadingSnapshots ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : snapshots.length === 0 ? (
+            <div className="text-center py-8">
+              <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">No snapshots captured yet</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Go to the Endpoints page to capture your first snapshot
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {snapshots.slice(0, 5).map((snapshot: any) => (
+                <div
+                  key={snapshot.id}
+                  className="flex items-center justify-between p-4 border rounded-lg"
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        snapshot.status === 'success'
+                          ? 'bg-green-500'
+                          : 'bg-red-500'
+                      }`}
+                    />
+                    <div>
+                      <p className="font-medium">{snapshot.endpoint}</p>
+                      <p className="text-sm text-muted-foreground" title={new Date(snapshot.timestamp).toLocaleString()}>
+                        {formatRelativeTime(snapshot.timestamp)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium">{snapshot.status}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {snapshot.responseTime ? `${snapshot.responseTime}ms` : '-'}
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-medium">{snapshot.status}</p>
-                  <p className="text-sm text-muted-foreground">
-                    -
-                  </p>
+              ))}
+              {snapshots.length > 5 && (
+                <div className="text-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/snapshots')}
+                  >
+                    View All Snapshots
+                  </Button>
                 </div>
-              </div>
-            ))}
-          </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

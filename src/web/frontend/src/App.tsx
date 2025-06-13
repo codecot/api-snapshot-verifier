@@ -5,7 +5,7 @@ import Endpoints from '@/pages/Endpoints'
 import Snapshots from '@/pages/Snapshots'
 import Compare from '@/pages/Compare'
 import Plugins from '@/pages/Plugins'
-import Settings from '@/pages/Settings'
+import SettingsLocal from '@/pages/SettingsLocal'
 import Parameters from '@/pages/Parameters'
 import { SpaceManagement } from '@/pages/SpaceManagement'
 import BackendSetupWizard from '@/components/BackendSetupWizard'
@@ -33,7 +33,7 @@ function App() {
         <Route path="compare" element={<Compare />} />
         <Route path="parameters" element={<Parameters />} />
         <Route path="plugins" element={<Plugins />} />
-        <Route path="settings" element={<Settings />} />
+        <Route path="settings" element={<SettingsLocal />} />
         <Route path="spaces" element={<SpaceManagement />} />
       </Route>
     </Routes>

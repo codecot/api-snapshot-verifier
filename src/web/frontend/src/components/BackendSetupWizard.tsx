@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
+import { useLocalServers } from '@/hooks/useLocalServers'
 
 interface BackendSetupWizardProps {
   onComplete: (backendUrl: string) => void
@@ -14,48 +15,34 @@ export default function BackendSetupWizard({
   initialUrl = 'http://localhost:3301',
   error 
 }: BackendSetupWizardProps) {
+  const { testServer, addServer, setDefaultServer } = useLocalServers()
   const [backendUrl, setBackendUrl] = useState(initialUrl)
   const [isValidating, setIsValidating] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [isValid, setIsValid] = useState(false)
+  const [serverInfo, setServerInfo] = useState<any>(null)
 
   const validateBackendUrl = async (url: string) => {
     setIsValidating(true)
     setValidationError(null)
     setIsValid(false)
+    setServerInfo(null)
 
     try {
-      // Remove trailing slash and add /health endpoint
       const cleanUrl = url.replace(/\/+$/, '')
-      const healthUrl = `${cleanUrl}/health`
+      const testResult = await testServer(cleanUrl)
       
-      const response = await fetch(healthUrl, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' },
-        // Add timeout
-        signal: AbortSignal.timeout(5000)
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data.status === 'healthy') {
-          setIsValid(true)
-          return true
-        } else {
-          setValidationError('Backend responded but health check failed')
-          return false
-        }
+      if (testResult.connected) {
+        setIsValid(true)
+        setServerInfo(testResult.serverInfo)
+        return true
       } else {
-        setValidationError(`Backend responded with ${response.status}: ${response.statusText}`)
+        setValidationError(testResult.error || 'Failed to connect to backend')
         return false
       }
     } catch (error) {
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          setValidationError('Connection timeout - is the backend running?')
-        } else {
-          setValidationError(`Connection failed: ${error.message}`)
-        }
+        setValidationError(`Connection failed: ${error.message}`)
       } else {
         setValidationError('Failed to connect to backend')
       }
@@ -76,7 +63,22 @@ export default function BackendSetupWizard({
 
   const handleSave = () => {
     if (isValid) {
-      onComplete(backendUrl.replace(/\/+$/, ''))
+      const cleanUrl = backendUrl.replace(/\/+$/, '')
+      
+      // Add server to local storage
+      const url = new URL(cleanUrl)
+      const name = `${url.hostname}:${url.port || (url.protocol === 'https:' ? '443' : '80')}`
+      
+      const newServer = addServer({
+        url: cleanUrl,
+        name,
+        serverInfo,
+        lastConnected: new Date().toISOString(),
+        isDefault: true // Make it default since this is initial setup
+      })
+      
+      setDefaultServer(newServer.id)
+      onComplete(cleanUrl)
     }
   }
 

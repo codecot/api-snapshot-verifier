@@ -1,36 +1,77 @@
 import React, { useState } from 'react'
-import { ChevronDown, Plus, Settings, Trash2 } from 'lucide-react'
+import { ChevronDown, Plus, Settings, Trash2, AlertCircle, Zap, Code2, Box } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useSpace } from '@/contexts/SpaceContext'
 
-// Smart color detection for space environments
-function getSpaceColor(space: string): string {
+// Smart environment detection for spaces
+function getSpaceEnvironment(space: string): {
+  icon: React.ReactNode
+  bgColor: string
+  hoverBgColor: string
+  textColor: string
+  borderColor: string
+  label: string
+  className: string
+} {
   const lowerSpace = space.toLowerCase()
   
-  // Production variants (red)
+  // Production variants (red theme)
   if (lowerSpace.includes('prod') || lowerSpace.includes('live') || lowerSpace.includes('release')) {
-    return 'bg-red-500'
+    return {
+      icon: <AlertCircle className="h-3 w-3" />,
+      bgColor: 'bg-red-50',
+      hoverBgColor: 'hover:bg-red-100',
+      textColor: 'text-red-700',
+      borderColor: 'border-red-200',
+      label: 'Production',
+      className: 'bg-red-50 text-red-700 hover:bg-red-100'
+    }
   }
   
-  // Staging/QA variants (yellow) 
+  // Staging/QA variants (yellow theme) 
   if (lowerSpace.includes('stag') || lowerSpace.includes('qa') || lowerSpace.includes('test') || lowerSpace.includes('uat') || lowerSpace.includes('sandbox')) {
-    return 'bg-yellow-500'
+    return {
+      icon: <Zap className="h-3 w-3" />,
+      bgColor: 'bg-yellow-50',
+      hoverBgColor: 'hover:bg-yellow-100',
+      textColor: 'text-yellow-700',
+      borderColor: 'border-yellow-200',
+      label: 'Staging',
+      className: 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+    }
   }
   
-  // Development variants (green)
+  // Development variants (green theme)
   if (lowerSpace.includes('dev') || lowerSpace.includes('local')) {
-    return 'bg-green-500'
+    return {
+      icon: <Code2 className="h-3 w-3" />,
+      bgColor: 'bg-green-50',
+      hoverBgColor: 'hover:bg-green-100',
+      textColor: 'text-green-700',
+      borderColor: 'border-green-200',
+      label: 'Development',
+      className: 'bg-green-50 text-green-700 hover:bg-green-100'
+    }
   }
   
-  // Default/other (blue)
-  return 'bg-blue-500'
+  // Default/other (blue theme)
+  return {
+    icon: <Box className="h-3 w-3" />,
+    bgColor: 'bg-blue-50',
+    hoverBgColor: 'hover:bg-blue-100',
+    textColor: 'text-blue-700',
+    borderColor: 'border-blue-200',
+    label: 'Default',
+    className: 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+  }
 }
 
 export default function SpaceSelector() {
   const { 
     currentSpace, 
     availableSpaces, 
+    spacesInfo,
     isLoading, 
     switchSpace, 
     createSpace, 
@@ -88,18 +129,32 @@ export default function SpaceSelector() {
     )
   }
 
+  const currentSpaceInfo = spacesInfo.find(s => s.name === currentSpace)
+  const currentEndpointCount = currentSpaceInfo?.endpoint_count || 0
+  const currentEnv = getSpaceEnvironment(currentSpace)
+  
+  // No indicators for current space - you're already here
+  const currentIndicatorColor = ''
+  const currentIndicatorTitle = ''
+
   return (
     <div className="relative">
       <Button
         variant="outline"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 min-w-[140px] justify-between"
+        className={`flex items-center gap-2 min-w-[180px] justify-between border ${currentEnv.borderColor} ${currentEnv.className}`}
       >
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${getSpaceColor(currentSpace)}`} />
-          <span className="capitalize">{currentSpace}</span>
+        <div className="flex items-center gap-2 flex-1">
+          {currentEnv.icon}
+          <span className="capitalize font-medium">{currentSpace}</span>
+          <span 
+            className={`text-xs px-1.5 py-0.5 rounded ml-auto ${currentEnv.textColor} bg-white/60`}
+            title={`${currentEndpointCount} endpoint${currentEndpointCount !== 1 ? 's' : ''}`}
+          >
+            {currentEndpointCount}
+          </span>
         </div>
-        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''} ${currentEnv.textColor}`} />
       </Button>
 
       {isOpen && (
@@ -115,33 +170,94 @@ export default function SpaceSelector() {
           <Card className="absolute top-full mt-1 right-0 z-20 min-w-[200px] shadow-lg">
             <CardContent className="p-2">
               <div className="space-y-1">
-                {availableSpaces.map((space) => (
-                  <div key={space} className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        switchSpace(space)
-                        setIsOpen(false)
-                      }}
-                      className={`flex-1 text-left px-3 py-2 rounded text-sm hover:bg-gray-100 ${
-                        space === currentSpace ? 'bg-blue-50 text-blue-600 font-medium' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${getSpaceColor(space)}`} />
-                        <span className="capitalize">{space}</span>
-                      </div>
-                    </button>
-                    {space !== 'default' && space !== currentSpace && (
+                {spacesInfo.map((spaceInfo) => {
+                  const space = spaceInfo.name
+                  const endpointCount = spaceInfo.endpoint_count
+                  const env = getSpaceEnvironment(space)
+                  
+                  // Indicator logic:
+                  // - Red dot: Errors that need attention (API failures, auth issues)
+                  // - Blue dot: Recent changes in OTHER spaces (not current space)
+                  // - No dot: Normal state or you're in this space
+                  
+                  // For now, only show activity indicators for spaces other than current
+                  const isCurrentSpace = space === currentSpace
+                  
+                  // TODO: These would come from the API with space stats
+                  // const hasErrors = spaceInfo.has_errors || false
+                  // const hasRecentChanges = spaceInfo.recent_changes || false
+                  
+                  // Empty space is only a "problem" if it's unintentional
+                  // Deleting all endpoints is a valid action, not an error
+                  const hasErrors = false // TODO: Real errors from API
+                  const hasRecentActivity = false // TODO: Track recent changes
+                  
+                  let indicatorColor = ''
+                  let indicatorTitle = ''
+                  
+                  // Don't show indicators for current space - you already know what you're doing
+                  if (!isCurrentSpace) {
+                    if (hasErrors) {
+                      indicatorColor = 'bg-red-500'
+                      indicatorTitle = 'This space has errors that need attention'
+                    } else if (hasRecentActivity) {
+                      indicatorColor = 'bg-blue-500'
+                      indicatorTitle = 'Recent changes in this space'
+                    }
+                  }
+                  
+                  return (
+                    <div key={space} className="flex items-center gap-2">
                       <button
-                        onClick={() => handleDeleteSpace(space)}
-                        className="p-1 text-gray-400 hover:text-red-500 rounded"
-                        title={`Delete ${space} space`}
+                        onClick={() => {
+                          switchSpace(space)
+                          setIsOpen(false)
+                        }}
+                        className={`flex-1 text-left px-3 py-2 rounded text-sm transition-all ${
+                          space === currentSpace 
+                            ? `${env.className} font-medium ring-2 ring-offset-1 ${env.borderColor.replace('border', 'ring')}` 
+                            : env.className
+                        }`}
+                        title={`${env.label} environment`}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {env.icon}
+                            <span className="capitalize">{space}</span>
+                            {indicatorColor && (
+                              <div 
+                                className={`w-1.5 h-1.5 ${indicatorColor} rounded-full ${hasErrors ? 'animate-pulse' : ''}`}
+                                title={indicatorTitle}
+                              />
+                            )}
+                          </div>
+                          <span 
+                            className={`text-xs px-1.5 py-0.5 rounded ${
+                              space === currentSpace
+                                ? `${env.textColor} bg-white/60`
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                            title={`${endpointCount} endpoint${endpointCount !== 1 ? 's' : ''}`}
+                          >
+                            {endpointCount}
+                          </span>
+                        </div>
                       </button>
-                    )}
-                  </div>
-                ))}
+                      {/* Always reserve space for delete button to maintain alignment */}
+                      <div className="w-7 h-7 flex items-center justify-center">
+                        {space !== 'default' && space !== currentSpace && (
+                          <button
+                            onClick={() => handleDeleteSpace(space)}
+                            className="p-1 text-gray-400 hover:text-red-500 rounded"
+                            title={`Delete ${space} space`}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
 
               <div className="border-t mt-2 pt-2">

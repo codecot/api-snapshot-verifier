@@ -32,153 +32,137 @@ async function snapshotRoutes(fastify: FastifyInstance) {
   fastify.get('/', async (request: FastifyRequest & { logger?: any }, reply: FastifyReply) => {
     try {
       const { space } = request.query as { space?: string };
+      const targetSpace = space || 'default';
       
       // Check if the space exists first
-      if (space) {
-        const { DatabaseConfigManager } = await import('../../database/database-config-manager.js');
-        const configManager = new DatabaseConfigManager();
+      const { DatabaseConfigManager } = await import('../../database/database-config-manager.js');
+      const { DatabaseService } = await import('../../database/database-service.js');
+      const configManager = new DatabaseConfigManager();
+      const dbService = new DatabaseService();
+      
+      const spaceExists = configManager.spaceExists(targetSpace);
+      
+      if (!spaceExists) {
+        reply.status(404);
+        return {
+          success: false,
+          error: 'Space not found',
+          message: `Space '${targetSpace}' does not exist. Create it first using POST /api/config/spaces`,
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      // Get space ID for database queries
+      const spaceRecord = dbService.getSpaceByName(targetSpace);
+      const snapshots = [];
+      const addedSnapshotIds = new Set<string>(); // Track added snapshots to avoid duplicates
+      
+      // First, try to get snapshots from database
+      if (spaceRecord) {
+        const dbSnapshots = dbService.getSnapshotsBySpaceId(spaceRecord.id, 100);
         
-        if (!configManager.spaceExists(space)) {
-          reply.status(404);
-          return {
-            success: false,
-            error: 'Space not found',
-            message: `Space '${space}' does not exist. Create it first using POST /api/config/spaces`,
-            timestamp: new Date().toISOString()
-          };
+        // Get endpoint details for each snapshot
+        for (const dbSnapshot of dbSnapshots) {
+          const endpoint = dbService.getEndpointById(dbSnapshot.endpoint_id);
+          if (endpoint) {
+            const snapshotId = dbSnapshot.filename.replace('.json', '');
+            snapshots.push({
+              id: snapshotId,
+              endpoint: endpoint.name,
+              timestamp: dbSnapshot.created_at,
+              status: dbSnapshot.status,
+              url: endpoint.url,
+              method: endpoint.method,
+              responseStatus: dbSnapshot.response_status,
+              error: dbSnapshot.error,
+              duration: dbSnapshot.duration
+            });
+            addedSnapshotIds.add(snapshotId);
+          }
         }
-        
-        // Try to read actual snapshot files for this space
+      }
+      
+      // Also try to read from filesystem to include any legacy snapshots
+      // that might not be in the database yet
+      {
         try {
           const fs = await import('fs');
           const path = await import('path');
           
-          // Sanitize space name for safe directory access
-          const sanitizedSpace = space.replace(/[^a-zA-Z0-9_-]/g, '_');
-          const snapshotDir = sanitizedSpace ? `./snapshots/${sanitizedSpace}` : './snapshots';
+          // Check multiple possible locations
+          const possibleDirs = [
+            './snapshots', // Default location
+            `./snapshots/${targetSpace}`, // Space-specific location
+            `./snapshots/${targetSpace.replace(/[^a-zA-Z0-9_-]/g, '_')}` // Sanitized space location
+          ];
           
-          if (fs.existsSync(snapshotDir)) {
-            const files = fs.readdirSync(snapshotDir)
-              .filter(file => file.endsWith('.json'))
-              .sort((a, b) => b.localeCompare(a)); // Sort by newest first
-            
-            const snapshots = [];
-            
-            for (const file of files) {
-              try {
-                const filePath = path.join(snapshotDir, file);
-                const fileContent = fs.readFileSync(filePath, 'utf-8');
-                const snapshotData = JSON.parse(fileContent);
-                
-                // Extract relevant info for the API
-                snapshots.push({
-                  id: file.replace('.json', ''),
-                  endpoint: snapshotData.endpoint?.name || 'unknown',
-                  timestamp: snapshotData.timestamp,
-                  status: (snapshotData.response?.status >= 200 && snapshotData.response?.status < 300) ? 'success' : 'error',
-                  url: snapshotData.endpoint?.url,
-                  method: snapshotData.endpoint?.method,
-                  responseStatus: snapshotData.response?.status,
-                  error: snapshotData.error
-                });
-              } catch (parseError) {
-                console.warn(`Failed to parse snapshot file ${file}:`, parseError);
+          for (const snapshotDir of possibleDirs) {
+            if (fs.existsSync(snapshotDir)) {
+              const files = fs.readdirSync(snapshotDir)
+                .filter(file => file.endsWith('.json'))
+                .sort((a, b) => b.localeCompare(a)); // Sort by newest first
+              
+              for (const file of files) {
+                try {
+                  const filePath = path.join(snapshotDir, file);
+                  const fileContent = fs.readFileSync(filePath, 'utf-8');
+                  const snapshotData = JSON.parse(fileContent);
+                  
+                  // Only include snapshots that belong to this space
+                  // Check if endpoint belongs to current space
+                  if (spaceRecord) {
+                    const endpoints = dbService.getEndpointsBySpaceId(spaceRecord.id);
+                    const belongsToSpace = endpoints.some(ep => ep.name === snapshotData.endpoint?.name);
+                    
+                    // Only include if the endpoint belongs to this space
+                    // For the default snapshots directory, only include if it matches an endpoint in this space
+                    if (belongsToSpace) {
+                      const snapshotId = file.replace('.json', '');
+                      // Only add if not already added from database
+                      if (!addedSnapshotIds.has(snapshotId)) {
+                        // Extract relevant info for the API
+                        snapshots.push({
+                          id: snapshotId,
+                          endpoint: snapshotData.endpoint?.name || 'unknown',
+                          timestamp: snapshotData.timestamp,
+                          status: (snapshotData.response?.status >= 200 && snapshotData.response?.status < 300) ? 'success' : 'error',
+                          url: snapshotData.endpoint?.url,
+                          method: snapshotData.endpoint?.method,
+                          responseStatus: snapshotData.response?.status,
+                          error: snapshotData.error,
+                          duration: snapshotData.response?.duration
+                        });
+                        addedSnapshotIds.add(snapshotId);
+                      }
+                    }
+                  }
+                } catch (parseError) {
+                  console.warn(`Failed to parse snapshot file ${file}:`, parseError);
+                }
               }
             }
-            
-            return {
-              success: true,
-              data: snapshots,
-              count: snapshots.length,
-              space: space || 'default',
-              timestamp: new Date().toISOString()
-            };
           }
         } catch (fsError) {
           console.warn('Failed to read snapshot files:', fsError);
         }
       }
       
-      // Generate mock data only for specific established spaces
-      const getSnapshotsForSpace = (spaceName: string) => {
-        // Only return mock data for pre-existing demo spaces
-        if (spaceName === 'development' || spaceName === 'default') {
-          return [
-            {
-              id: `${spaceName}-snap-1`,
-              endpoint: 'example-api',
-              timestamp: '2025-01-06T10:00:00Z',
-              status: 'success'
-            },
-            {
-              id: `${spaceName}-snap-2`, 
-              endpoint: 'example-api',
-              timestamp: '2025-01-06T09:00:00Z',
-              status: 'success'
-            }
-          ];
-        } else if (spaceName === 'staging') {
-          return [
-            {
-              id: `${spaceName}-snap-1`,
-              endpoint: 'staging-api',
-              timestamp: '2025-01-06T10:00:00Z',
-              status: 'success'
-            },
-            {
-              id: `${spaceName}-snap-2`,
-              endpoint: 'staging-api',
-              timestamp: '2025-01-06T09:00:00Z',
-              status: 'success'
-            },
-            {
-              id: `${spaceName}-snap-3`,
-              endpoint: 'staging-users',
-              timestamp: '2025-01-06T08:00:00Z',
-              status: 'success'
-            }
-          ];
-        } else if (spaceName === 'production') {
-          return [
-            {
-              id: `${spaceName}-snap-1`,
-              endpoint: 'prod-api',
-              timestamp: '2025-01-06T10:00:00Z',
-              status: 'success'
-            },
-            {
-              id: `${spaceName}-snap-2`,
-              endpoint: 'prod-api', 
-              timestamp: '2025-01-06T09:00:00Z',
-              status: 'error'
-            },
-            {
-              id: `${spaceName}-snap-3`,
-              endpoint: 'health-check',
-              timestamp: '2025-01-06T08:00:00Z',
-              status: 'success'
-            },
-            {
-              id: `${spaceName}-snap-4`,
-              endpoint: 'health-check',
-              timestamp: '2025-01-06T07:00:00Z',
-              status: 'success'
-            }
-          ];
-        }
-
-        // For any other space (newly created), return empty array
-        return [];
-      };
-
-      // For now, return empty snapshots since there are no real snapshots in the database yet
-      const snapshots: any[] = [];
+      // Sort by timestamp (newest first)
+      snapshots.sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
+        return timeB - timeA;
+      });
+      
+      // Close database connection
+      dbService.close();
       
       return {
         success: true,
         data: snapshots,
         count: snapshots.length,
-        space: space || 'default'
+        space: targetSpace,
+        timestamp: new Date().toISOString()
       };
     } catch (error) {
       (request as any).logger?.error('Failed to list snapshots:', error);
@@ -392,6 +376,37 @@ async function snapshotRoutes(fastify: FastifyInstance) {
               const filePath = await spaceAwareStorage.saveSnapshot(result.snapshot, false);
               console.log(`📁 Snapshot saved to: ${filePath} for space: ${targetSpace}`);
               
+              // Record snapshot in database
+              try {
+                const { DatabaseService } = await import('../../database/database-service.js');
+                const dbService = new DatabaseService();
+                const spaceRecord = dbService.getSpaceByName(targetSpace);
+                
+                if (spaceRecord) {
+                  const endpointRecords = dbService.getEndpointsBySpaceId(spaceRecord.id);
+                  const endpointRecord = endpointRecords.find(ep => ep.name === endpoint.name);
+                  
+                  if (endpointRecord) {
+                    const filename = filePath.split('/').pop() || `${endpoint.name}_${Date.now()}.json`;
+                    dbService.createSnapshot(
+                      spaceRecord.id,
+                      endpointRecord.id,
+                      filename,
+                      'success',
+                      {
+                        response_status: result.snapshot.response?.status,
+                        duration: result.snapshot.response?.duration,
+                        file_size: JSON.stringify(result.snapshot).length
+                      }
+                    );
+                    console.log(`📊 Snapshot recorded in database for endpoint '${endpoint.name}'`);
+                  }
+                }
+                dbService.close();
+              } catch (dbError) {
+                console.warn(`Failed to record snapshot in database:`, dbError);
+              }
+              
               results.push({
                 endpoint: endpoint.name,
                 success: true,
@@ -401,6 +416,35 @@ async function snapshotRoutes(fastify: FastifyInstance) {
               
               (request as any).logger?.info(`✅ Snapshot captured for endpoint '${endpoint.name}' in space '${targetSpace}'`);
             } else {
+              // Record failed snapshot in database
+              try {
+                const { DatabaseService } = await import('../../database/database-service.js');
+                const dbService = new DatabaseService();
+                const spaceRecord = dbService.getSpaceByName(targetSpace);
+                
+                if (spaceRecord) {
+                  const endpointRecords = dbService.getEndpointsBySpaceId(spaceRecord.id);
+                  const endpointRecord = endpointRecords.find(ep => ep.name === endpoint.name);
+                  
+                  if (endpointRecord) {
+                    const filename = `${endpoint.name}_${Date.now()}_failed.json`;
+                    dbService.createSnapshot(
+                      spaceRecord.id,
+                      endpointRecord.id,
+                      filename,
+                      'error',
+                      {
+                        error: result.error || 'Unknown error'
+                      }
+                    );
+                    console.log(`📊 Failed snapshot recorded in database for endpoint '${endpoint.name}'`);
+                  }
+                }
+                dbService.close();
+              } catch (dbError) {
+                console.warn(`Failed to record failed snapshot in database:`, dbError);
+              }
+              
               results.push({
                 endpoint: endpoint.name,
                 success: false,
@@ -623,6 +667,37 @@ async function snapshotRoutes(fastify: FastifyInstance) {
               const filePath = await spaceAwareStorage.saveSnapshot(result.snapshot, false);
               console.log(`📁 Snapshot saved to: ${filePath} for space: ${space}`);
               
+              // Record snapshot in database
+              try {
+                const { DatabaseService } = await import('../../database/database-service.js');
+                const dbService = new DatabaseService();
+                const spaceRecord = dbService.getSpaceByName(space);
+                
+                if (spaceRecord) {
+                  const endpointRecords = dbService.getEndpointsBySpaceId(spaceRecord.id);
+                  const endpointRecord = endpointRecords.find(ep => ep.name === endpoint.name);
+                  
+                  if (endpointRecord) {
+                    const filename = filePath.split('/').pop() || `${endpoint.name}_${Date.now()}.json`;
+                    dbService.createSnapshot(
+                      spaceRecord.id,
+                      endpointRecord.id,
+                      filename,
+                      'success',
+                      {
+                        response_status: result.snapshot.response?.status,
+                        duration: result.snapshot.response?.duration,
+                        file_size: JSON.stringify(result.snapshot).length
+                      }
+                    );
+                    console.log(`📊 Snapshot recorded in database for endpoint '${endpoint.name}'`);
+                  }
+                }
+                dbService.close();
+              } catch (dbError) {
+                console.warn(`Failed to record snapshot in database:`, dbError);
+              }
+              
               results.push({
                 endpoint: endpoint.name,
                 success: true,
@@ -632,6 +707,35 @@ async function snapshotRoutes(fastify: FastifyInstance) {
               
               (request as any).logger?.info(`✅ Snapshot captured for endpoint '${endpoint.name}' in space '${space}'`);
             } else {
+              // Record failed snapshot in database
+              try {
+                const { DatabaseService } = await import('../../database/database-service.js');
+                const dbService = new DatabaseService();
+                const spaceRecord = dbService.getSpaceByName(space);
+                
+                if (spaceRecord) {
+                  const endpointRecords = dbService.getEndpointsBySpaceId(spaceRecord.id);
+                  const endpointRecord = endpointRecords.find(ep => ep.name === endpoint.name);
+                  
+                  if (endpointRecord) {
+                    const filename = `${endpoint.name}_${Date.now()}_failed.json`;
+                    dbService.createSnapshot(
+                      spaceRecord.id,
+                      endpointRecord.id,
+                      filename,
+                      'error',
+                      {
+                        error: result.error || 'Unknown error'
+                      }
+                    );
+                    console.log(`📊 Failed snapshot recorded in database for endpoint '${endpoint.name}'`);
+                  }
+                }
+                dbService.close();
+              } catch (dbError) {
+                console.warn(`Failed to record failed snapshot in database:`, dbError);
+              }
+              
               results.push({
                 endpoint: endpoint.name,
                 success: false,

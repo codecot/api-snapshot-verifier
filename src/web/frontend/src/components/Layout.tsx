@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from 'react-router-dom'
+import { Outlet, NavLink, Link } from 'react-router-dom'
 import { 
   LayoutDashboard, 
   Globe, 
@@ -123,12 +123,18 @@ export default function Layout() {
           <div className="flex h-full flex-col">
             {/* Logo */}
             <div className="flex h-16 items-center px-4 border-b justify-between">
-              <h1 className={cn(
-                "font-bold transition-all duration-300",
-                isSidebarOpen ? "text-xl" : "text-sm"
-              )}>
+              <Link 
+                to="/"
+                className={cn(
+                  "font-bold transition-all duration-300 hover:text-primary",
+                  isSidebarOpen ? "text-xl" : "text-sm"
+                )}
+                onClick={() => {
+                  if (isMobile()) setIsMobileMenuOpen(false)
+                }}
+              >
                 {isSidebarOpen ? 'API Snapshot' : 'AS'}
-              </h1>
+              </Link>
               <button
                 onClick={toggleSidebar}
                 className="hidden md:block p-1 rounded hover:bg-accent"
