@@ -1026,6 +1026,98 @@ async function configRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // GET /api/config/server-info - Get comprehensive server information
+  fastify.get('/server-info', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      
+      // Get backend version
+      const packageJsonPath = path.join(process.cwd(), 'package.json');
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+      
+      // Check WebSocket status
+      const hasWebSocket = !!(fastify as any).io;
+      const isWebSocketEnabled = hasWebSocket && (fastify as any).io.engine;
+      
+      // Get database statistics
+      let statistics = {
+        spaces: 0,
+        endpoints: 0,
+        parameters: 0,
+        snapshots: 0
+      };
+      
+      try {
+        const spaces = dbConfigManager.database.getAllSpaces();
+        statistics.spaces = spaces.length;
+        
+        // Count endpoints across all spaces
+        for (const space of spaces) {
+          const endpoints = dbConfigManager.database.getEndpointsBySpaceId(space.id);
+          statistics.endpoints += endpoints.length;
+          
+          // Count parameters for this space
+          const parameters = dbConfigManager.database.getSpaceParameters(space.id);
+          statistics.parameters += Object.keys(parameters).length;
+        }
+        
+        // Count snapshots (if we have a method for it)
+        // For now, we'll estimate based on file system if needed
+      } catch (dbError) {
+        console.error('Failed to get database statistics:', dbError);
+      }
+      
+      return {
+        success: true,
+        data: {
+          server: {
+            name: packageJson.name,
+            version: packageJson.version,
+            description: packageJson.description,
+            uptime: process.uptime(),
+            nodeVersion: process.version,
+            platform: process.platform,
+            memory: {
+              used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+              total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+              unit: 'MB'
+            }
+          },
+          websocket: {
+            available: hasWebSocket,
+            enabled: isWebSocketEnabled,
+            endpoint: hasWebSocket ? '/socket.io/' : null,
+            transports: hasWebSocket ? ['websocket', 'polling'] : [],
+            connectedClients: isWebSocketEnabled ? (fastify as any).io.engine.clientsCount : 0
+          },
+          database: {
+            type: 'SQLite',
+            statistics
+          },
+          features: {
+            realTimeUpdates: hasWebSocket,
+            authentication: true,
+            schemaValidation: true,
+            diffEngine: true,
+            pluginSystem: true,
+            webUI: true
+          }
+        },
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Failed to get server info:', error);
+      reply.status(500);
+      return {
+        success: false,
+        error: 'Failed to get server information',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      };
+    }
+  });
+
   // GET /api/config/websocket-status - Check WebSocket availability
   fastify.get('/websocket-status', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
