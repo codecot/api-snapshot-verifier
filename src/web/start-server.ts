@@ -6,7 +6,6 @@ import { LogLevel } from '../core/logger.js';
 const config: WebServerConfig = {
   port: parseInt(process.env.PORT || '3000'),
   host: process.env.HOST || 'localhost',
-  configPath: process.env.CONFIG_PATH || './api-snapshot.config.json',
   logLevel: LogLevel.INFO,
   corsOrigin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173', 'http://localhost:3300'],
   enableRateLimit: process.env.ENABLE_RATE_LIMIT === 'true'
@@ -18,7 +17,7 @@ async function startServer() {
   try {
     console.log('🚀 Starting API Snapshot Verifier Web Server...');
     console.log(`🌐 Server: ${config.host}:${config.port}`);
-    console.log(`📁 Config path: ${config.configPath}`);
+    console.log(`💾 Database: ./snapshots.db`);
     console.log(`🌐 CORS origins: ${Array.isArray(config.corsOrigin) ? config.corsOrigin.join(', ') : config.corsOrigin}`);
     
     await server.initialize();

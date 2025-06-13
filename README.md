@@ -41,6 +41,25 @@ npm run build
 
 ## Quick Start
 
+### Web UI (Recommended)
+
+The web UI provides a modern interface for managing API snapshots without requiring configuration files:
+
+```bash
+# Start the web server (backend on port 3301, frontend on port 3300)
+npm run web
+```
+
+Then open <http://localhost:3300> in your browser. The web UI features:
+
+- 🎯 Visual space/environment management
+- 📊 Real-time dashboard with statistics
+- 🔄 WebSocket support for live updates
+- 💾 SQLite database storage (no config files needed)
+- 🚀 First-time setup wizard
+
+## CLI Usage
+
 ### Option 1: Manual Configuration
 
 1. **Initialize configuration**:
