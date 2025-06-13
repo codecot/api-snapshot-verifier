@@ -16,6 +16,24 @@ api-snapshot.dev.json
 # Change logs (may contain sensitive endpoint information)
 api-snapshot-changes.log.json
 
+# SQLite database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup directories
+backups/
+backup/
+
+# Test files
+test-*.json
+test-*.js
+test-*.ts
+
+# Config directories (now using database)
+configs/
+config-spaces/
+
 # Allow CI/CD configs (should use environment variables for secrets)
 !api-snapshot.ci.json
 !api-snapshot.github.json

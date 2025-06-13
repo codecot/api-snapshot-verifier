@@ -20,14 +20,29 @@ export class CaptureCommand extends BaseCommand {
 
   async execute(options: CaptureOptions, context: CommandContext): Promise<void> {
     try {
-      const snapshotService = await this.resolveService<SnapshotService>(context, ServiceKeys.STORAGE);
+      const snapshotService = await this.resolveService<SnapshotService>(context, ServiceKeys.SNAPSHOT_SERVICE);
 
       context.logger.info('Starting snapshot capture...');
 
-      // Perform capture
-      const results = options.endpoint 
-        ? [await snapshotService.captureSnapshot({ name: options.endpoint } as any)]
-        : await snapshotService.captureAll(options.baseline);
+      // If specific endpoint is requested, find it from config
+      let results;
+      if (options.endpoint) {
+        if (!context.config) {
+          console.log(chalk.red(`❌ Configuration not available in context`));
+          process.exit(1);
+        }
+        
+        const endpoint = context.config.endpoints.find(e => e.name === options.endpoint);
+        
+        if (!endpoint) {
+          console.log(chalk.red(`❌ Endpoint '${options.endpoint}' not found in configuration`));
+          process.exit(1);
+        }
+        
+        results = [await snapshotService.captureSnapshot(endpoint)];
+      } else {
+        results = await snapshotService.captureAll(options.baseline);
+      }
       
       const successful = results.filter(r => r.success).length;
       const failed = results.length - successful;

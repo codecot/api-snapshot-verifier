@@ -2,9 +2,10 @@ import apiClient from './client'
 import type { Snapshot, ComparisonResult } from '@/types'
 
 export const snapshotsApi = {
-  getAll: async () => {
-    const { data } = await apiClient.get<Snapshot[]>('/snapshots')
-    return data
+  getAll: async (space?: string) => {
+    const params = space ? { space } : {}
+    const { data } = await apiClient.get<{ success: boolean; data: Snapshot[]; count: number }>('/snapshots', { params })
+    return data.data
   },
 
   getById: async (id: string) => {
@@ -12,14 +13,26 @@ export const snapshotsApi = {
     return data
   },
 
-  capture: async (endpointName?: string) => {
-    const url = endpointName ? `/snapshots/capture/${endpointName}` : '/snapshots/capture'
-    const { data } = await apiClient.post<Snapshot | Snapshot[]>(url)
-    return data
+  capture: async (space?: string, endpointNames?: string[]) => {
+    const body = endpointNames ? { endpoints: endpointNames } : {}
+    
+    // Use space-specific endpoint if space is provided, otherwise use general endpoint with query param
+    if (space) {
+      const { data } = await apiClient.post<Snapshot | Snapshot[]>(`/snapshots/capture/${space}`, body)
+      return data
+    } else {
+      const { data } = await apiClient.post<Snapshot | Snapshot[]>('/snapshots/capture', body)
+      return data
+    }
   },
 
   delete: async (id: string) => {
     await apiClient.delete(`/snapshots/${id}`)
+  },
+
+  deleteByEndpoint: async (space: string, endpointName: string) => {
+    const params = { space, endpoint: endpointName }
+    await apiClient.delete('/snapshots/by-endpoint', { params })
   },
 
   compare: async (snapshot1Id: string, snapshot2Id: string) => {

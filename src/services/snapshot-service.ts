@@ -9,6 +9,8 @@ import {
 import { ApiEndpoint, ApiSnapshot, SnapshotComparison, ValidationResult } from '../types.js';
 import { GenericRegistry } from '../core/registry.js';
 import { SchemaManager } from '../schema-manager.js';
+import { resolveEndpointParameters, debugParameterResolution, hasUnresolvedParameters } from '../utils/parameterResolver.js';
+import { mergeSpaceParameters } from '../utils/databaseSpaceParameterResolver.js';
 
 export class DefaultSnapshotService implements SnapshotService {
   constructor(
@@ -17,37 +19,67 @@ export class DefaultSnapshotService implements SnapshotService {
     private authRegistry: GenericRegistry<AuthProvider>,
     private schemaManager: SchemaManager,
     private endpoints: ApiEndpoint[],
-    private logger: Logger
+    private logger: Logger,
+    private spaceId: string = 'default'
   ) {}
 
   async captureSnapshot(endpoint: ApiEndpoint): Promise<{ success: boolean; snapshot?: ApiSnapshot; error?: string; }> {
     const startTime = Date.now();
     
     try {
-      // Validate request body if schema is provided
+      // Debug incoming endpoint
+      console.log(`🔍 [${endpoint.name}] Starting capture for space '${this.spaceId}'`);
+      console.log(`   Original endpoint:`, JSON.stringify(endpoint, null, 2));
+      
+      // 1. Merge space-level parameters with endpoint parameters
+      const endpointWithSpaceParams = await mergeSpaceParameters(endpoint, this.spaceId);
+      
+      // 2. Resolve template parameters
+      const resolvedEndpoint = resolveEndpointParameters(endpointWithSpaceParams);
+      
+      // Debug parameter resolution if parameters exist
+      if (endpointWithSpaceParams.parameters && Object.keys(endpointWithSpaceParams.parameters).length > 0) {
+        console.log(`🔄 [${endpoint.name}] Parameter Resolution:`);
+        console.log(`   Template URL: ${endpoint.url}`);
+        console.log(`   Resolved URL: ${resolvedEndpoint.url}`);
+        console.log(`   Parameters:`, endpointWithSpaceParams.parameters);
+        console.log(`   Space: ${this.spaceId}`);
+        debugParameterResolution(endpointWithSpaceParams, resolvedEndpoint);
+        this.logger.info(`[${endpoint.name}] Resolved parameters:`, endpointWithSpaceParams.parameters);
+      } else {
+        console.log(`🔄 [${endpoint.name}] No parameters to resolve`);
+        console.log(`   endpointWithSpaceParams.parameters:`, endpointWithSpaceParams.parameters);
+      }
+      
+      // Check for any unresolved parameters
+      if (hasUnresolvedParameters(resolvedEndpoint)) {
+        this.logger.warn(`[${endpoint.name}] Endpoint contains unresolved parameters`);
+      }
+      
+      // 2. Validate request body if schema is provided (use resolved endpoint)
       let requestValidation: ValidationResult | undefined;
-      if (endpoint.schema && endpoint.body) {
-        requestValidation = await this.schemaManager.validateRequest(endpoint.body, endpoint.schema);
+      if (resolvedEndpoint.schema && resolvedEndpoint.body) {
+        requestValidation = await this.schemaManager.validateRequest(resolvedEndpoint.body, resolvedEndpoint.schema);
         
         if (!requestValidation.isValid) {
-          this.logger.warn(`Request validation failed for ${endpoint.name}:`, requestValidation.errors);
+          this.logger.warn(`Request validation failed for ${resolvedEndpoint.name}:`, requestValidation.errors);
         }
       }
 
-      // Prepare request configuration
+      // 3. Prepare request configuration using resolved values
       let requestConfig: RequestConfig = {
-        method: endpoint.method,
-        url: endpoint.url,
-        headers: endpoint.headers || {},
-        timeout: endpoint.timeout
+        method: resolvedEndpoint.method,
+        url: resolvedEndpoint.url,
+        headers: resolvedEndpoint.headers || {},
+        timeout: resolvedEndpoint.timeout
       };
 
-      if (endpoint.body && ['POST', 'PUT', 'PATCH'].includes(endpoint.method)) {
-        requestConfig.data = endpoint.body;
+      if (resolvedEndpoint.body && ['POST', 'PUT', 'PATCH'].includes(resolvedEndpoint.method)) {
+        requestConfig.data = resolvedEndpoint.body;
       }
 
       // Apply authentication if configured
-      if (endpoint.auth) {
+      if (endpoint.auth && endpoint.auth.type) {
         const authProvider = this.authRegistry.get(endpoint.auth.type);
         if (authProvider) {
           requestConfig = await authProvider.authenticate(requestConfig);
@@ -73,9 +105,9 @@ export class DefaultSnapshotService implements SnapshotService {
         }
       }
 
-      // Create snapshot
+      // Create snapshot (store original endpoint with parameters)
       const snapshot: ApiSnapshot = {
-        endpoint,
+        endpoint: endpoint, // Store original endpoint with template parameters
         timestamp: new Date().toISOString(),
         request: requestValidation ? { validation: requestValidation } : undefined,
         response: {

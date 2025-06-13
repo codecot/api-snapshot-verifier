@@ -11,7 +11,10 @@ export class FileSystemStorageProvider implements StorageProvider {
 
   async saveSnapshot(snapshot: ApiSnapshot, baseline = false): Promise<string> {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `${snapshot.endpoint.name}-${timestamp}.json`;
+    
+    // Sanitize endpoint name to prevent path traversal
+    const sanitizedEndpointName = snapshot.endpoint.name.replace(/[^a-zA-Z0-9_\- ]/g, '_');
+    const filename = `${sanitizedEndpointName}-${timestamp}.json`;
     
     const targetDir = baseline && this.baselineDir ? this.baselineDir : this.snapshotDir;
     const filePath = path.join(targetDir, filename);

@@ -24,15 +24,18 @@ export interface ValidationResult {
 export interface ApiEndpoint {
   name: string;
   url: string;
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
   headers?: Record<string, string>;
   body?: any;
   timeout?: number;
   schema?: ApiSchema;
   auth?: {
-    type: string;
+    type?: string;
+    token?: string;
     config?: any;
   };
+  // Universal parameter support - Phase 1
+  parameters?: Record<string, string>;  // Resolved parameter values: { userId: "123", authToken: "abc" }
 }
 
 export interface ApiSnapshot {
@@ -76,6 +79,13 @@ export interface Config {
   baselineDir?: string;
   rules?: DiffRule[];
   environment?: string;
+  space?: string; // Added to track the actual space name
+  plugins?: {
+    auth?: { providers: string[] };
+    formatters?: { default: string };
+    storage?: { provider: string };
+    diff?: { engine: string };
+  };
 }
 
 export interface DiffRule {
