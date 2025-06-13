@@ -996,6 +996,66 @@ async function configRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // GET /api/config/version - Get backend version
+  fastify.get('/version', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      // Read backend package.json
+      const fs = await import('fs');
+      const path = await import('path');
+      const packageJsonPath = path.join(process.cwd(), 'package.json');
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+      
+      return {
+        success: true,
+        data: {
+          version: packageJson.version,
+          name: packageJson.name,
+          description: packageJson.description
+        },
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Failed to get version:', error);
+      reply.status(500);
+      return {
+        success: false,
+        error: 'Failed to get version',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      };
+    }
+  });
+
+  // GET /api/config/websocket-status - Check WebSocket availability
+  fastify.get('/websocket-status', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      // Check if Socket.IO is available on the fastify instance
+      const hasWebSocket = !!(fastify as any).io;
+      const isEnabled = hasWebSocket && (fastify as any).io.engine;
+      
+      return {
+        success: true,
+        data: {
+          available: hasWebSocket,
+          enabled: isEnabled,
+          endpoint: hasWebSocket ? '/socket.io/' : null,
+          transports: hasWebSocket ? ['websocket', 'polling'] : [],
+          connectedClients: isEnabled ? (fastify as any).io.engine.clientsCount : 0
+        },
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Failed to get WebSocket status:', error);
+      reply.status(500);
+      return {
+        success: false,
+        error: 'Failed to get WebSocket status',
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      };
+    }
+  });
+
   // DELETE /api/config/spaces/:space - Delete a config space
   fastify.delete('/spaces/:space', async (request: FastifyRequest, reply: FastifyReply) => {
     try {

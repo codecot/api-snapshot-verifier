@@ -67,12 +67,34 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false)
   const [isReconnecting, setIsReconnecting] = useState(false)
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const [webSocketEnabled, setWebSocketEnabled] = useState(false)
   const maxReconnectAttempts = 10
   const { backendUrl } = useBackendConfig()
+  
+  // Check if WebSocket is enabled by user preference
+  useEffect(() => {
+    const checkPreference = () => {
+      const savedPref = localStorage.getItem('useWebSocket')
+      setWebSocketEnabled(savedPref === 'true')
+    }
+    
+    checkPreference()
+    
+    // Listen for preference changes
+    const handlePreferenceChange = (event: CustomEvent) => {
+      setWebSocketEnabled(event.detail.enabled)
+    }
+    
+    window.addEventListener('websocket-preference-changed' as any, handlePreferenceChange)
+    return () => {
+      window.removeEventListener('websocket-preference-changed' as any, handlePreferenceChange)
+    }
+  }, [])
   
   // Debug backend config
   console.log('🔍 WebSocket Provider - Backend Config:', { 
     backendUrl,
+    webSocketEnabled,
     currentPageOrigin: window.location.origin,
     shouldMatch: 'These should be the same for no CORS issues'
   })
@@ -80,6 +102,17 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!backendUrl) {
       console.log('🔍 WebSocket: No backend URL available yet')
+      return
+    }
+
+    if (!webSocketEnabled) {
+      console.log('🔍 WebSocket: Disabled by user preference')
+      // Clean up any existing connection
+      if (socket) {
+        socket.close()
+        setSocket(null)
+        setIsConnected(false)
+      }
       return
     }
 
@@ -256,7 +289,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       clearInterval(connectionCheck)
       newSocket.disconnect()
     }
-  }, [backendUrl])
+  }, [backendUrl, webSocketEnabled])
 
   // Event listener helpers
   const captureEvents = {

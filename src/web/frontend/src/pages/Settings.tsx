@@ -8,6 +8,7 @@ import {
   resetToDefaultBackendUrl,
   config 
 } from '@/config'
+import { Wifi, WifiOff, AlertCircle, CheckCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function Settings() {
@@ -27,11 +28,29 @@ export default function Settings() {
     responseTime?: number;
     error?: string;
   }>({ tested: false, success: false })
+  
+  // WebSocket state
+  const [webSocketStatus, setWebSocketStatus] = useState<{
+    checked: boolean;
+    available: boolean;
+    enabled: boolean;
+    connectedClients?: number;
+  }>({ checked: false, available: false, enabled: false })
+  const [useWebSocket, setUseWebSocket] = useState(false)
 
   // Load current settings on mount
   useEffect(() => {
     setBackendUrl(getCurrentBackendUrl())
     setTimeout(config.api.timeout)
+    
+    // Load WebSocket preference from localStorage
+    const savedWebSocketPref = localStorage.getItem('useWebSocket')
+    if (savedWebSocketPref !== null) {
+      setUseWebSocket(savedWebSocketPref === 'true')
+    }
+    
+    // Check WebSocket availability
+    checkWebSocketStatus()
   }, [])
 
   // Validate URL as user types
@@ -118,6 +137,46 @@ export default function Settings() {
     setBackendUrl(getCurrentBackendUrl())
     setConnectionStatus({ tested: false, success: false })
     toast.success('Reset to default backend URL')
+  }
+
+  const checkWebSocketStatus = async () => {
+    try {
+      const response = await fetch(`${getCurrentBackendUrl()}/api/config/websocket-status`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.data) {
+          setWebSocketStatus({
+            checked: true,
+            available: data.data.available,
+            enabled: data.data.enabled,
+            connectedClients: data.data.connectedClients
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check WebSocket status:', error)
+      setWebSocketStatus({
+        checked: true,
+        available: false,
+        enabled: false
+      })
+    }
+  }
+
+  const handleWebSocketToggle = (enabled: boolean) => {
+    setUseWebSocket(enabled)
+    localStorage.setItem('useWebSocket', String(enabled))
+    
+    if (enabled && webSocketStatus.available) {
+      toast.success('Real-time updates enabled via WebSocket')
+    } else if (!enabled) {
+      toast.success('Real-time updates disabled')
+    }
+    
+    // Optionally emit an event for other components to react
+    window.dispatchEvent(new CustomEvent('websocket-preference-changed', { 
+      detail: { enabled, available: webSocketStatus.available } 
+    }))
   }
 
   return (
@@ -269,6 +328,99 @@ export default function Settings() {
                 <option value="dark">Dark</option>
                 <option value="system">System</option>
               </select>
+            </div>
+          </div>
+        </Card>
+
+        {/* WebSocket Configuration */}
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            Real-time Updates (WebSocket)
+            {webSocketStatus.checked && (
+              webSocketStatus.available ? (
+                <CheckCircle className="h-5 w-5 text-green-500" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-yellow-500" />
+              )
+            )}
+          </h2>
+          
+          <div className="space-y-4">
+            {/* WebSocket Status */}
+            {webSocketStatus.checked && (
+              <div className={`p-3 rounded-lg border ${
+                webSocketStatus.available 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-yellow-50 border-yellow-200'
+              }`}>
+                <div className="flex items-start gap-2">
+                  {webSocketStatus.available ? (
+                    <>
+                      <Wifi className="h-5 w-5 text-green-600 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-medium text-green-800">WebSocket Available</p>
+                        <p className="text-sm text-green-700 mt-1">
+                          Real-time updates are available on this backend server.
+                          {webSocketStatus.enabled && webSocketStatus.connectedClients !== undefined && (
+                            <span className="block mt-1">
+                              Active connections: {webSocketStatus.connectedClients}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="h-5 w-5 text-yellow-600 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-medium text-yellow-800">WebSocket Not Available</p>
+                        <p className="text-sm text-yellow-700 mt-1">
+                          Real-time updates are not available on this backend server. 
+                          Updates will use polling instead.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Enable/Disable Toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="font-medium">Enable Real-time Updates</label>
+                <p className="text-sm text-gray-600">
+                  Use WebSocket for instant updates when available
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={useWebSocket}
+                onChange={(e) => handleWebSocketToggle(e.target.checked)}
+                disabled={!webSocketStatus.available}
+                className="h-4 w-4 disabled:opacity-50"
+              />
+            </div>
+
+            {/* Additional Info */}
+            <div className="text-sm text-gray-600 mt-4 p-3 bg-gray-50 rounded">
+              <p className="font-medium mb-2">About Real-time Updates:</p>
+              <ul className="space-y-1 list-disc list-inside">
+                <li>When enabled, the UI will update instantly when snapshots are captured or compared</li>
+                <li>If disabled or unavailable, the UI will use periodic polling for updates</li>
+                <li>WebSocket connections might be blocked by some firewalls or proxy servers</li>
+                <li>Disabling this can help if you experience connection issues</li>
+              </ul>
+            </div>
+
+            {/* Refresh Status Button */}
+            <div className="pt-2">
+              <button
+                onClick={checkWebSocketStatus}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Refresh WebSocket Status
+              </button>
             </div>
           </div>
         </Card>

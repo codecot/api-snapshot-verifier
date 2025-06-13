@@ -19,6 +19,9 @@ import { cn } from '@/lib/utils'
 import SpaceSelector from '@/components/SpaceSelector'
 import { useSpace } from '@/contexts/SpaceContext'
 
+// Import package.json for version
+import packageJson from '../../package.json'
+
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Endpoints', href: '/endpoints', icon: Globe },
@@ -34,6 +37,7 @@ export default function Layout() {
   const [isDark, setIsDark] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [backendVersion, setBackendVersion] = useState<string | null>(null)
   const { currentSpace } = useSpace()
 
   useEffect(() => {
@@ -58,6 +62,22 @@ export default function Layout() {
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Fetch backend version
+  useEffect(() => {
+    const fetchBackendVersion = async () => {
+      try {
+        const response = await fetch('/api/config/version')
+        const data = await response.json()
+        if (data.success && data.data) {
+          setBackendVersion(data.data.version)
+        }
+      } catch (error) {
+        console.error('Failed to fetch backend version:', error)
+      }
+    }
+    fetchBackendVersion()
   }, [])
 
   const toggleDarkMode = () => {
@@ -177,6 +197,16 @@ export default function Layout() {
               {/* Spacer for mobile menu button */}
               <div className="w-10 md:hidden" />
               <h2 className="text-lg font-semibold truncate">API Snapshot Verifier</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  Frontend v{packageJson.version}
+                </span>
+                {backendVersion && (
+                  <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                    Backend v{backendVersion}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-4">
               <SpaceSelector />

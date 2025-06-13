@@ -117,6 +117,27 @@ src/
 
 ## Recent Changes Made
 
+### WebSocket Configuration & Version Display (Jan 2025)
+
+1. **Backend/Frontend Version Display**
+   - Added `/api/config/version` endpoint to get backend version
+   - Updated Layout component to fetch and display both frontend and backend versions
+   - Versions shown as subtle badges in the app header (e.g., "Frontend v1.1.0" "Backend v1.1.0")
+
+2. **WebSocket Configuration in Settings**
+   - Added `/api/config/websocket-status` endpoint to check WebSocket availability
+   - Created comprehensive WebSocket configuration section in Settings page
+   - Shows real-time WebSocket status (available/unavailable, connected clients)
+   - Allows users to enable/disable WebSocket for real-time updates
+   - Provides fallback to polling when WebSocket is disabled or unavailable
+   - Saves preference to localStorage and emits events for other components
+
+3. **WebSocket Context Updates**
+   - Modified WebSocketContext to respect user preference from localStorage
+   - Only attempts connection when explicitly enabled by user
+   - Properly cleans up connections when disabled
+   - Listens for preference change events to enable/disable dynamically
+
 ### Database Migration & UI Fixes (Dec 2025)
 
 1. **React UI Bug Fixes**
@@ -321,6 +342,14 @@ After cleanup (as of Dec 2025):
 - **0 orphaned data** - all cleaned up
 - **Consistent naming** throughout
 
+## UI Features
+
+### WebSocket Support
+- Real-time updates via WebSocket when enabled and available
+- Automatic fallback to polling when WebSocket is disabled or unavailable
+- User-configurable in Settings page
+- Respects firewall/proxy restrictions by allowing manual disable
+
 ## UI Roadmap
 
 ## Claude Memory
@@ -416,3 +445,160 @@ npm run build  # Recompile TypeScript
 - GraphQL request bodies not handled
 - File uploads in form-data not preserved
 - Pre-request scripts and tests ignored
+
+## Repository Cleanup (June 13, 2025)
+
+### Git Cleanup Completed
+1. **Removed SQLite database from tracking**: 
+   - `snapshots.db` removed from git (should be runtime-generated)
+   - Added `*.db`, `*.sqlite`, `*.sqlite3` to .gitignore
+
+2. **Removed test and backup files**:
+   - 15 backup JSON files from migration
+   - 12 config JSON files (now in database)
+   - 4 test files (test-*.json, test-*.js)
+   - Total: 32 files removed, 1,686 lines deleted
+
+3. **Updated .gitignore patterns**:
+   - Database files: `*.db`, `*.sqlite`, `*.sqlite3`
+   - Backup directories: `backups/`, `backup/`
+   - Test files: `test-*.json`, `test-*.js`, `test-*.ts`
+   - Config directories: `configs/`, `config-spaces/`
+
+4. **Properly ignored directories confirmed**:
+   - `node_modules/` - All Node.js dependencies
+   - `dist/` - TypeScript build output
+   - `snapshots/` - Runtime API snapshots
+
+### What Remains in Git
+- Source code only
+- Example configurations: `api-snapshot.ci.json`, `api-snapshot.config.example.json`
+- No runtime data, test files, or database files
+
+## Session Summary
+
+This session focused on:
+1. Fixing React Query cache issues for space parameter updates
+2. Implementing Postman Collection import functionality
+3. Fixing OpenAPI import to use database instead of file system
+4. Cleaning up the repository from accidentally committed files
+5. Comprehensive testing and bug fixes
+
+All features are working correctly with the SQLite database backend.
+
+## Development Roadmap (June 13, 2025)
+
+### Immediate Improvements (High Impact, Quick Wins)
+
+1. **YAML Support for Import** (1-2 hours)
+   - Both OpenAPI and Postman imports currently only support JSON
+   - Many APIs provide OpenAPI specs in YAML format
+   - Add `js-yaml` parser to handle YAML files
+   ```typescript
+   // Simple addition to OpenAPIImport.tsx
+   import yaml from 'js-yaml';
+   if (uploadedFile.name.endsWith('.yaml') || uploadedFile.name.endsWith('.yml')) {
+     parsedSchema = yaml.load(content);
+   }
+   ```
+
+2. **Bulk Operations UI**
+   - Add "Select All" / "Delete Selected" for endpoints
+   - Bulk import from multiple files
+   - Bulk parameter management across spaces
+
+3. **Export Functionality** (3-4 hours)
+   - Export space configuration as OpenAPI/Postman collection
+   - Export snapshots as CSV/Excel for reporting
+   - Backup/restore spaces to JSON files
+   - Add "Export" button to spaces
+   - Convert endpoints back to OpenAPI/Postman format
+
+### Core Feature Enhancements
+
+4. **Advanced Diff Visualization** (4-6 hours)
+   - Side-by-side diff viewer in the UI
+   - Highlight specific changes (not just "different")
+   - Ignore rules management UI
+   - Visual diff history timeline
+   - Show before/after for each changed field
+
+5. **Scheduled Snapshot Automation**
+   - Cron-like scheduling for automatic captures
+   - Email/webhook notifications on changes
+   - Automatic baseline updates based on rules
+   - Background job processing
+
+6. **Environment Variable Management**
+   - UI for managing environment variables
+   - Variable inheritance between spaces
+   - Secure storage for sensitive values
+   - Integration with .env files
+
+### Advanced Features
+
+7. **API Mocking Server**
+   - Use captured snapshots to create mock endpoints
+   - Useful for testing when real APIs are down
+   - Could integrate with Postman mock servers
+   - Dynamic response generation
+
+8. **Performance Monitoring**
+   - Track response times over time
+   - Alert on performance degradation
+   - Response size tracking
+   - Historical performance graphs
+   - SLA monitoring
+
+9. **Contract Testing**
+   - Define expected schemas for responses
+   - Validate snapshots against contracts
+   - Generate contracts from OpenAPI specs
+   - Integration with tools like Pact
+
+### Developer Experience
+
+10. **CLI Improvements**
+    - Interactive mode for easier setup
+    - Better error messages with suggestions
+    - Progress bars for long operations
+    - Shell completion scripts
+    - `--watch` mode for continuous monitoring
+
+11. **Plugin System Completion**
+    - Finish the plugin marketplace concept
+    - npm package loading for external plugins
+    - Plugin development documentation
+    - Example plugin templates
+    - Plugin CLI generator
+
+12. **Testing Infrastructure**
+    - Add comprehensive test suite
+    - CI/CD integration examples
+    - GitHub Actions workflows
+    - Pre-commit hooks
+    - Coverage reporting
+
+### Recommended Priority Order
+
+**Phase 1 - Quick Wins (1-2 days)**
+1. YAML Support
+2. Export Functionality
+3. Bulk Delete Operations
+
+**Phase 2 - User Experience (1 week)**
+4. Advanced Diff Visualization
+5. Environment Variable Management
+6. Scheduled Snapshots
+
+**Phase 3 - Advanced Features (2-3 weeks)**
+7. Performance Monitoring
+8. API Mocking
+9. Contract Testing
+
+**Phase 4 - Platform Maturity (ongoing)**
+10. Plugin System
+11. CLI Improvements
+12. Testing Infrastructure
+
+This roadmap builds on the solid foundation of the database migration and provides a path to make the tool enterprise-ready while maintaining ease of use for individual developers.
