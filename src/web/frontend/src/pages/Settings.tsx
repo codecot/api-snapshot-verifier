@@ -6,9 +6,10 @@ import {
   validateBackendUrl, 
   testBackendConnection,
   resetToDefaultBackendUrl,
-  config 
+  config,
+  type ServerInfo
 } from '@/config'
-import { Wifi, WifiOff, AlertCircle, CheckCircle } from 'lucide-react'
+import { Wifi, WifiOff, AlertCircle, CheckCircle, Info, Server, Database, Activity } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function Settings() {
@@ -27,7 +28,9 @@ export default function Settings() {
     success: boolean;
     responseTime?: number;
     error?: string;
+    serverInfo?: ServerInfo;
   }>({ tested: false, success: false })
+  const [showServerInfo, setShowServerInfo] = useState(false)
   
   // WebSocket state
   const [webSocketStatus, setWebSocketStatus] = useState<{
@@ -82,7 +85,8 @@ export default function Settings() {
         setConnectionStatus({
           tested: true,
           success: true,
-          responseTime: connectionTest.responseTime
+          responseTime: connectionTest.responseTime,
+          serverInfo: connectionTest.serverInfo
         })
         
         toast.success(`Configuration saved! Backend connected in ${connectionTest.responseTime}ms`)
@@ -117,7 +121,8 @@ export default function Settings() {
         tested: true,
         success: result.success,
         responseTime: result.responseTime,
-        error: result.error
+        error: result.error,
+        serverInfo: result.serverInfo
       })
 
       if (result.success) {
@@ -229,10 +234,142 @@ export default function Settings() {
                     : 'bg-red-100 text-red-800 border border-red-200'
                 }`}>
                   {connectionStatus.success ? (
-                    <span>✅ Connected successfully in {connectionStatus.responseTime}ms</span>
+                    <div>
+                      <span>✅ Connected successfully in {connectionStatus.responseTime}ms</span>
+                      {connectionStatus.serverInfo && (
+                        <button
+                          onClick={() => setShowServerInfo(!showServerInfo)}
+                          className="ml-2 text-green-700 hover:text-green-900 underline text-xs"
+                        >
+                          {showServerInfo ? 'Hide' : 'Show'} server details
+                        </button>
+                      )}
+                    </div>
                   ) : (
                     <span>❌ Connection failed: {connectionStatus.error}</span>
                   )}
+                </div>
+              )}
+
+              {/* Server Info Details */}
+              {showServerInfo && connectionStatus.serverInfo && (
+                <div className="mt-4 space-y-4">
+                  {/* Server Overview */}
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+                      <Server className="h-4 w-4" />
+                      Server Information
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-blue-700">Version:</span>
+                        <span className="ml-2 font-medium text-blue-900">
+                          {connectionStatus.serverInfo.server.version}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-blue-700">Platform:</span>
+                        <span className="ml-2 font-medium text-blue-900">
+                          {connectionStatus.serverInfo.server.platform}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-blue-700">Node.js:</span>
+                        <span className="ml-2 font-medium text-blue-900">
+                          {connectionStatus.serverInfo.server.nodeVersion}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-blue-700">Memory:</span>
+                        <span className="ml-2 font-medium text-blue-900">
+                          {connectionStatus.serverInfo.server.memory.used}/{connectionStatus.serverInfo.server.memory.total} {connectionStatus.serverInfo.server.memory.unit}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Database Statistics */}
+                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <h4 className="font-medium text-purple-900 mb-3 flex items-center gap-2">
+                      <Database className="h-4 w-4" />
+                      Database Statistics
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-purple-700">Spaces:</span>
+                        <span className="font-bold text-purple-900">
+                          {connectionStatus.serverInfo.database.statistics.spaces}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-purple-700">Endpoints:</span>
+                        <span className="font-bold text-purple-900">
+                          {connectionStatus.serverInfo.database.statistics.endpoints}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-purple-700">Parameters:</span>
+                        <span className="font-bold text-purple-900">
+                          {connectionStatus.serverInfo.database.statistics.parameters}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-purple-700">Type:</span>
+                        <span className="font-bold text-purple-900">
+                          {connectionStatus.serverInfo.database.type}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Features & Capabilities */}
+                  <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                    <h4 className="font-medium text-orange-900 mb-3 flex items-center gap-2">
+                      <Activity className="h-4 w-4" />
+                      Features & Capabilities
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        {connectionStatus.serverInfo.websocket.available ? (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-gray-400" />
+                        )}
+                        <span className={connectionStatus.serverInfo.websocket.available ? 'text-green-800' : 'text-gray-600'}>
+                          Real-time Updates
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {connectionStatus.serverInfo.features.pluginSystem ? (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-gray-400" />
+                        )}
+                        <span className="text-green-800">Plugin System</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {connectionStatus.serverInfo.features.authentication ? (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-gray-400" />
+                        )}
+                        <span className="text-green-800">Authentication</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {connectionStatus.serverInfo.features.schemaValidation ? (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-gray-400" />
+                        )}
+                        <span className="text-green-800">Schema Validation</span>
+                      </div>
+                    </div>
+                    {connectionStatus.serverInfo.websocket.available && (
+                      <div className="mt-3 pt-3 border-t border-orange-200 text-xs text-orange-700">
+                        WebSocket: {connectionStatus.serverInfo.websocket.connectedClients} active connection(s)
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

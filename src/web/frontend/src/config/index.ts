@@ -109,13 +109,60 @@ export function validateBackendUrl(url: string): { valid: boolean; error?: strin
   }
 }
 
+// Server info type
+export interface ServerInfo {
+  server: {
+    name: string;
+    version: string;
+    description: string;
+    uptime: number;
+    nodeVersion: string;
+    platform: string;
+    memory: {
+      used: number;
+      total: number;
+      unit: string;
+    };
+  };
+  websocket: {
+    available: boolean;
+    enabled: boolean;
+    endpoint: string | null;
+    transports: string[];
+    connectedClients: number;
+  };
+  database: {
+    type: string;
+    statistics: {
+      spaces: number;
+      endpoints: number;
+      parameters: number;
+      snapshots: number;
+    };
+  };
+  features: {
+    realTimeUpdates: boolean;
+    authentication: boolean;
+    schemaValidation: boolean;
+    diffEngine: boolean;
+    pluginSystem: boolean;
+    webUI: boolean;
+  };
+}
+
 // Test connection to backend URL
-export async function testBackendConnection(url: string): Promise<{ success: boolean; error?: string; responseTime?: number }> {
+export async function testBackendConnection(url: string): Promise<{ 
+  success: boolean; 
+  error?: string; 
+  responseTime?: number;
+  serverInfo?: ServerInfo;
+}> {
   const startTime = Date.now();
   
   try {
-    const testUrl = `${url.replace(/\/$/, '')}/health`;
-    const response = await fetch(testUrl, {
+    // First, try the health endpoint
+    const healthUrl = `${url.replace(/\/$/, '')}/health`;
+    const healthResponse = await fetch(healthUrl, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
       signal: AbortSignal.timeout(5000) // 5 second timeout
@@ -123,11 +170,39 @@ export async function testBackendConnection(url: string): Promise<{ success: boo
     
     const responseTime = Date.now() - startTime;
     
-    if (response.ok) {
-      return { success: true, responseTime };
-    } else {
-      return { success: false, error: `HTTP ${response.status}: ${response.statusText}` };
+    if (!healthResponse.ok) {
+      return { 
+        success: false, 
+        error: `HTTP ${healthResponse.status}: ${healthResponse.statusText}`,
+        responseTime 
+      };
     }
+    
+    // If health check passes, get server info
+    try {
+      const serverInfoUrl = `${url.replace(/\/$/, '')}/api/config/server-info`;
+      const serverInfoResponse = await fetch(serverInfoUrl, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(3000) // 3 second timeout
+      });
+      
+      if (serverInfoResponse.ok) {
+        const serverInfoData = await serverInfoResponse.json();
+        if (serverInfoData.success && serverInfoData.data) {
+          return { 
+            success: true, 
+            responseTime,
+            serverInfo: serverInfoData.data
+          };
+        }
+      }
+    } catch (infoError) {
+      // If server info fails, still return success but without the extra info
+      console.error('Failed to fetch server info:', infoError);
+    }
+    
+    return { success: true, responseTime };
   } catch (error) {
     const responseTime = Date.now() - startTime;
     return { 
