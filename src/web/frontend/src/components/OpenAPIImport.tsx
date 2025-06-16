@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react'
-import { useDropzone } from 'react-dropzone'
+import { useFileDrop } from '@/components/ui/file-drop'
 import { Upload, FileText, AlertCircle, X, Settings, Download, Eye, Globe, Loader2, Package } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import toast from 'react-hot-toast'
+import toast from '@/components/ui/toast'
 import type { ApiEndpoint } from '@/types'
 
 interface OpenAPIImportProps {
@@ -167,7 +167,7 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
     }
   }
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive } = useFileDrop({
     onDrop,
     accept: {
       'application/json': ['.json'],
@@ -466,12 +466,13 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-card text-card-foreground rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b">
           <div>
             <h2 className="text-xl font-semibold">Import API Schema</h2>
             <p className="text-sm text-gray-600 mt-1">
-              Import from OpenAPI/Swagger or Postman Collection to automatically generate endpoint configurations
+              Import from OpenAPI/Swagger or Postman Collection to automatically
+              generate endpoint configurations
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={onClose}>
@@ -484,22 +485,22 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
           {!showPreview && (
             <div className="flex gap-2 mb-4">
               <button
-                onClick={() => setImportMethod('file')}
+                onClick={() => setImportMethod("file")}
                 className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  importMethod === 'file'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  importMethod === "file"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 <Upload className="h-4 w-4 inline mr-2" />
                 Upload File
               </button>
               <button
-                onClick={() => setImportMethod('url')}
+                onClick={() => setImportMethod("url")}
                 className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
-                  importMethod === 'url'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  importMethod === "url"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 <Globe className="h-4 w-4 inline mr-2" />
@@ -509,7 +510,7 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
           )}
 
           {/* File Upload */}
-          {!showPreview && importMethod === 'file' && (
+          {!showPreview && importMethod === "file" && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -522,10 +523,10 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
                   {...getRootProps()}
                   className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
                     isDragActive
-                      ? 'border-blue-400 bg-blue-50'
+                      ? "border-blue-400 bg-blue-50"
                       : uploadError
-                      ? 'border-red-300 bg-red-50'
-                      : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+                      ? "border-red-300 bg-red-50"
+                      : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
                   }`}
                 >
                   <input {...getInputProps()} />
@@ -538,19 +539,28 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
                     ) : uploadError ? (
                       <div className="flex flex-col items-center">
                         <AlertCircle className="h-12 w-12 text-red-500" />
-                        <p className="text-red-600 font-medium">Upload Failed</p>
+                        <p className="text-red-600 font-medium">
+                          Upload Failed
+                        </p>
                         <p className="text-red-500 text-sm">{uploadError}</p>
-                        <p className="text-gray-500 text-sm mt-2">Click or drag to try again</p>
+                        <p className="text-gray-500 text-sm mt-2">
+                          Click or drag to try again
+                        </p>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center">
                         <FileText className="h-12 w-12 text-gray-400" />
                         <p className="text-gray-600 font-medium">
-                          {isDragActive ? 'Drop your API schema file here' : 'Drag & drop your API schema file here'}
+                          {isDragActive
+                            ? "Drop your API schema file here"
+                            : "Drag & drop your API schema file here"}
                         </p>
-                        <p className="text-gray-500 text-sm">or click to select a file</p>
+                        <p className="text-gray-500 text-sm">
+                          or click to select a file
+                        </p>
                         <p className="text-xs text-gray-400 mt-1">
-                          Supports: OpenAPI 3.x, Swagger 2.x, Postman Collection v2.1 (.json)
+                          Supports: OpenAPI 3.x, Swagger 2.x, Postman Collection
+                          v2.1 (.json)
                         </p>
                       </div>
                     )}
@@ -561,7 +571,7 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
           )}
 
           {/* URL Import */}
-          {!showPreview && importMethod === 'url' && (
+          {!showPreview && importMethod === "url" && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -580,7 +590,9 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
                         type="url"
                         value={schemaUrl}
                         onChange={(e) => setSchemaUrl(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && fetchSchemaFromUrl()}
+                        onKeyPress={(e) =>
+                          e.key === "Enter" && fetchSchemaFromUrl()
+                        }
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="https://api.example.com/openapi.json"
                         disabled={isLoadingUrl}
@@ -613,7 +625,9 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
                       <div className="flex items-start gap-2">
                         <AlertCircle className="h-4 w-4 text-red-500 mt-0.5" />
                         <div>
-                          <p className="text-sm text-red-700 font-medium">Import Failed</p>
+                          <p className="text-sm text-red-700 font-medium">
+                            Import Failed
+                          </p>
                           <p className="text-xs text-red-600">{uploadError}</p>
                         </div>
                       </div>
@@ -652,37 +666,57 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
                   <input
                     type="url"
                     value={importOptions.baseUrl}
-                    onChange={(e) => setImportOptions({ ...importOptions, baseUrl: e.target.value })}
+                    onChange={(e) =>
+                      setImportOptions({
+                        ...importOptions,
+                        baseUrl: e.target.value,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="https://api.example.com"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Override the base URL from the schema. Leave empty to use schema default.
+                    Override the base URL from the schema. Leave empty to use
+                    schema default.
                   </p>
                 </div>
-                
+
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={importOptions.merge}
-                      onChange={(e) => setImportOptions({ ...importOptions, merge: e.target.checked })}
+                      onChange={(e) =>
+                        setImportOptions({
+                          ...importOptions,
+                          merge: e.target.checked,
+                        })
+                      }
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <span className="text-sm">Merge with existing endpoints</span>
+                    <span className="text-sm">
+                      Merge with existing endpoints
+                    </span>
                   </label>
                 </div>
-                
+
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={importOptions.overwriteExisting}
-                      onChange={(e) => setImportOptions({ ...importOptions, overwriteExisting: e.target.checked })}
+                      onChange={(e) =>
+                        setImportOptions({
+                          ...importOptions,
+                          overwriteExisting: e.target.checked,
+                        })
+                      }
                       className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                       disabled={!importOptions.merge}
                     />
-                    <span className="text-sm">Overwrite conflicting endpoints</span>
+                    <span className="text-sm">
+                      Overwrite conflicting endpoints
+                    </span>
                   </label>
                 </div>
               </CardContent>
@@ -697,21 +731,27 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
                   <CardTitle className="flex items-center gap-2">
                     <Eye className="h-5 w-5" />
                     Import Preview
-                    <Badge variant="secondary">{parsedEndpoints.length} endpoints</Badge>
-                    {fileType === 'postman' && (
+                    <Badge variant="secondary">
+                      {parsedEndpoints.length} endpoints
+                    </Badge>
+                    {fileType === "postman" && (
                       <Badge variant="outline" className="ml-2">
                         <Package className="h-3 w-3 mr-1" />
                         Postman
                       </Badge>
                     )}
-                    {fileType === 'openapi' && (
+                    {fileType === "openapi" && (
                       <Badge variant="outline" className="ml-2">
                         <FileText className="h-3 w-3 mr-1" />
                         OpenAPI
                       </Badge>
                     )}
                   </CardTitle>
-                  <Button variant="outline" size="sm" onClick={() => setShowPreview(false)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPreview(false)}
+                  >
                     <Upload className="h-4 w-4 mr-2" />
                     Change File
                   </Button>
@@ -719,19 +759,22 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
               </CardHeader>
               <CardContent>
                 {/* Conflict Warning */}
-                {conflictingEndpoints.length > 0 && !importOptions.overwriteExisting && (
-                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-yellow-600" />
-                      <span className="text-sm font-medium text-yellow-800">
-                        {conflictingEndpoints.length} endpoint(s) already exist
-                      </span>
+                {conflictingEndpoints.length > 0 &&
+                  !importOptions.overwriteExisting && (
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-yellow-600" />
+                        <span className="text-sm font-medium text-yellow-800">
+                          {conflictingEndpoints.length} endpoint(s) already
+                          exist
+                        </span>
+                      </div>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        Enable "Overwrite conflicting endpoints" to replace
+                        them, or they will be skipped.
+                      </p>
                     </div>
-                    <p className="text-xs text-yellow-700 mt-1">
-                      Enable "Overwrite conflicting endpoints" to replace them, or they will be skipped.
-                    </p>
-                  </div>
-                )}
+                  )}
 
                 {/* Endpoints Table */}
                 <div className="border rounded-md overflow-hidden">
@@ -739,7 +782,9 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50 border-b sticky top-0">
                         <tr>
-                          <th className="text-left p-3 font-medium">Endpoint Name</th>
+                          <th className="text-left p-3 font-medium">
+                            Endpoint Name
+                          </th>
                           <th className="text-left p-3 font-medium">Method</th>
                           <th className="text-left p-3 font-medium">Path</th>
                           <th className="text-left p-3 font-medium">Status</th>
@@ -747,23 +792,40 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
                       </thead>
                       <tbody>
                         {parsedEndpoints.map((endpoint, index) => {
-                          const isConflicting = existingEndpoints.some(e => e.name === endpoint.name)
-                          const willBeSkipped = isConflicting && !importOptions.overwriteExisting
+                          const isConflicting = existingEndpoints.some(
+                            (e) => e.name === endpoint.name
+                          );
+                          const willBeSkipped =
+                            isConflicting && !importOptions.overwriteExisting;
 
                           return (
-                            <tr key={index} className={`border-b ${willBeSkipped ? 'bg-gray-50 text-gray-500' : ''}`}>
+                            <tr
+                              key={index}
+                              className={`border-b ${
+                                willBeSkipped ? "bg-gray-50 text-gray-500" : ""
+                              }`}
+                            >
                               <td className="p-3">
                                 <div>
-                                  <div className="font-medium">{endpoint.name}</div>
+                                  <div className="font-medium">
+                                    {endpoint.name}
+                                  </div>
                                   {endpoint.summary && (
-                                    <div className="text-xs text-gray-500 mt-1">{endpoint.summary}</div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {endpoint.summary}
+                                    </div>
                                   )}
                                 </div>
                               </td>
                               <td className="p-3">
-                                <Badge 
-                                  variant={endpoint.method === 'GET' ? 'default' : 
-                                          endpoint.method === 'POST' ? 'secondary' : 'outline'}
+                                <Badge
+                                  variant={
+                                    endpoint.method === "GET"
+                                      ? "default"
+                                      : endpoint.method === "POST"
+                                      ? "secondary"
+                                      : "outline"
+                                  }
                                   className="text-xs"
                                 >
                                   {endpoint.method}
@@ -776,21 +838,30 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
                               </td>
                               <td className="p-3">
                                 {willBeSkipped ? (
-                                  <Badge variant="outline" className="text-orange-600 border-orange-300">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-orange-600 border-orange-300"
+                                  >
                                     Will Skip
                                   </Badge>
                                 ) : isConflicting ? (
-                                  <Badge variant="outline" className="text-yellow-600 border-yellow-300">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-yellow-600 border-yellow-300"
+                                  >
                                     Will Overwrite
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="text-green-600 border-green-300">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-green-600 border-green-300"
+                                  >
                                     Will Import
                                   </Badge>
                                 )}
                               </td>
                             </tr>
-                          )
+                          );
                         })}
                       </tbody>
                     </table>
@@ -820,7 +891,7 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
               Cancel
             </Button>
             {showPreview && (
-              <Button 
+              <Button
                 onClick={handleImport}
                 disabled={parsedEndpoints.length === 0}
                 className="flex items-center gap-2"
@@ -833,5 +904,5 @@ export default function OpenAPIImport({ onImport, onClose, existingEndpoints, cu
         </div>
       </div>
     </div>
-  )
+  );
 }

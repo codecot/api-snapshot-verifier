@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { 
   Server, 
@@ -23,7 +22,8 @@ import {
   testBackendConnection,
   type ServerInfo
 } from '@/config'
-import toast from 'react-hot-toast'
+import { toast } from '@/components/ui/toast'
+import { PageLayout, PageHeader, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/design-system/components'
 
 interface SavedServer {
   id: string
@@ -41,44 +41,44 @@ function ServerInfoCard({ serverInfo }: { serverInfo: ServerInfo }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-600">Version</h4>
+          <h4 className="text-sm font-medium text-muted-foreground">Version</h4>
           <p className="text-lg font-semibold">{serverInfo.server.version}</p>
         </div>
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-600">Platform</h4>
+          <h4 className="text-sm font-medium text-muted-foreground">Platform</h4>
           <p className="text-lg font-semibold">{serverInfo.server.platform}</p>
         </div>
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-gray-600">Database Statistics</h4>
+        <h4 className="text-sm font-medium text-muted-foreground">Database Statistics</h4>
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-blue-50 rounded p-3 text-center">
-            <p className="text-2xl font-bold text-blue-700">{serverInfo.database.statistics.spaces}</p>
-            <p className="text-xs text-blue-600">Spaces</p>
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded p-3 text-center">
+            <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{serverInfo.database.statistics.spaces}</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400">Spaces</p>
           </div>
-          <div className="bg-purple-50 rounded p-3 text-center">
-            <p className="text-2xl font-bold text-purple-700">{serverInfo.database.statistics.endpoints}</p>
-            <p className="text-xs text-purple-600">Endpoints</p>
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded p-3 text-center">
+            <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">{serverInfo.database.statistics.endpoints}</p>
+            <p className="text-xs text-purple-600 dark:text-purple-400">Endpoints</p>
           </div>
-          <div className="bg-green-50 rounded p-3 text-center">
-            <p className="text-2xl font-bold text-green-700">{serverInfo.database.statistics.parameters}</p>
-            <p className="text-xs text-green-600">Parameters</p>
+          <div className="bg-green-50 dark:bg-green-900/20 rounded p-3 text-center">
+            <p className="text-2xl font-bold text-green-700 dark:text-green-400">{serverInfo.database.statistics.parameters}</p>
+            <p className="text-xs text-green-600 dark:text-green-400">Parameters</p>
           </div>
         </div>
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-gray-600">Features</h4>
+        <h4 className="text-sm font-medium text-muted-foreground">Features</h4>
         <div className="grid grid-cols-2 gap-2 text-sm">
           {Object.entries(serverInfo.features).map(([feature, enabled]) => (
             <div key={feature} className="flex items-center gap-2">
               {enabled ? (
                 <CheckCircle className="h-4 w-4 text-green-500" />
               ) : (
-                <AlertCircle className="h-4 w-4 text-gray-400" />
+                <AlertCircle className="h-4 w-4 text-muted-foreground" />
               )}
-              <span className={enabled ? 'text-gray-700' : 'text-gray-400'}>
+              <span className={enabled ? 'text-foreground' : 'text-muted-foreground'}>
                 {feature.replace(/([A-Z])/g, ' $1').trim()}
               </span>
             </div>
@@ -237,20 +237,20 @@ export default function SettingsNew() {
   return (
     <div className="flex h-full">
       {/* Left Sidebar - Server List */}
-      <div className="w-80 border-r bg-gray-50 p-4 space-y-2">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+      <div className="w-80 border-r bg-muted/30 dark:bg-muted/10 p-4 space-y-2">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 dark:text-muted-foreground">
           <Server className="h-5 w-5" />
           Servers
         </h2>
-        
-        {servers.map(server => (
+
+        {servers.map((server) => (
           <button
             key={server.id}
             onClick={() => setSelectedServerId(server.id)}
             className={`w-full text-left p-3 rounded-lg transition-colors ${
               selectedServerId === server.id
-                ? 'bg-white border-2 border-blue-500 shadow-sm'
-                : 'bg-white border border-gray-200 hover:border-gray-300'
+                ? "bg-card text-card-foreground border-2 border-primary shadow-sm"
+                : "bg-card text-card-foreground border border-border hover:border-muted-foreground/50"
             }`}
           >
             <div className="flex items-start justify-between">
@@ -264,29 +264,34 @@ export default function SettingsNew() {
                     <Lock className="h-4 w-4 text-gray-400" />
                   )}
                 </div>
-                <div className="text-xs text-gray-500 mt-1">{server.url}</div>
+                <div className="text-xs text-muted-foreground mt-1">{server.url}</div>
                 {server.serverInfo && (
-                  <div className="text-xs text-gray-600 mt-1">
-                    v{server.serverInfo.server.version} • {server.serverInfo.database.statistics.spaces} spaces
+                  <div className="text-xs text-muted-foreground mt-1">
+                    v{server.serverInfo.server.version} •{" "}
+                    {server.serverInfo.database.statistics.spaces} spaces
                   </div>
                 )}
               </div>
               {server.serverInfo?.websocket.available && (
                 <div className="ml-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    server.serverInfo.websocket.enabled ? 'bg-green-500' : 'bg-gray-300'
-                  }`} />
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      server.serverInfo.websocket.enabled
+                        ? "bg-green-500"
+                        : "bg-gray-300"
+                    }`}
+                  />
                 </div>
               )}
             </div>
           </button>
         ))}
-        
+
         {/* Add Server Button */}
         {!isAddingServer ? (
           <button
             onClick={() => setIsAddingServer(true)}
-            className="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-700 transition-colors flex items-center justify-center gap-2"
+            className="w-full p-3 border-2 border-dashed border-muted-foreground/30 rounded-lg text-muted-foreground hover:border-muted-foreground/50 hover:text-foreground transition-colors flex items-center justify-center gap-2"
           >
             <Plus className="h-4 w-4" />
             Add Server
@@ -298,7 +303,7 @@ export default function SettingsNew() {
               placeholder="Server URL"
               value={newServerUrl}
               onChange={(e) => setNewServerUrl(e.target.value)}
-              className="w-full px-3 py-2 border rounded text-sm"
+              className="w-full px-3 py-2 border rounded text-sm bg-background text-foreground"
               autoFocus
             />
             <input
@@ -306,23 +311,19 @@ export default function SettingsNew() {
               placeholder="Name (optional)"
               value={newServerName}
               onChange={(e) => setNewServerName(e.target.value)}
-              className="w-full px-3 py-2 border rounded text-sm"
+              className="w-full px-3 py-2 border rounded text-sm bg-background text-foreground"
             />
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={handleAddServer}
-                className="flex-1"
-              >
+              <Button size="sm" onClick={handleAddServer} className="flex-1">
                 Add
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  setIsAddingServer(false)
-                  setNewServerUrl('')
-                  setNewServerName('')
+                  setIsAddingServer(false);
+                  setNewServerUrl("");
+                  setNewServerName("");
                 }}
               >
                 Cancel
@@ -333,23 +334,19 @@ export default function SettingsNew() {
       </div>
 
       {/* Right Content - Server Details */}
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto">
         {selectedServer ? (
-          <div className="max-w-4xl space-y-6">
-            {/* Server Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2">
-                  {selectedServer.name}
-                  {selectedServer.isDefault && (
-                    <span className="text-sm font-normal bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                      Default
-                    </span>
-                  )}
-                </h1>
-                <p className="text-gray-600 mt-1">{selectedServer.url}</p>
-              </div>
-              
+          <PageLayout maxWidth="lg">
+            <PageHeader
+              title={selectedServer.name}
+              description={selectedServer.url}
+              badge={selectedServer.isDefault && (
+                <span className="text-sm font-normal bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400 px-2 py-1 rounded">
+                  Default
+                </span>
+              )}
+              actions={
+
               <div className="flex gap-2">
                 {!selectedServer.isDefault && (
                   <Button
@@ -370,7 +367,7 @@ export default function SettingsNew() {
                   {loadingServerInfo === selectedServer.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    'Refresh'
+                    "Refresh"
                   )}
                 </Button>
                 {!selectedServer.isDefault && !selectedServer.isLocked && (
@@ -384,14 +381,17 @@ export default function SettingsNew() {
                   </Button>
                 )}
               </div>
-            </div>
+              }
+            />
 
             {/* Server Info */}
             {loadingServerInfo === selectedServer.id ? (
               <Card className="p-8">
                 <div className="flex items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                  <span className="ml-2 text-gray-600">Loading server information...</span>
+                  <span className="ml-2 text-muted-foreground">
+                    Loading server information...
+                  </span>
                 </div>
               </Card>
             ) : selectedServer.serverInfo ? (
@@ -400,8 +400,8 @@ export default function SettingsNew() {
               </Card>
             ) : (
               <Card className="p-8">
-                <div className="text-center text-gray-500">
-                  <AlertCircle className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                <div className="text-center text-muted-foreground">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-2 text-muted-foreground opacity-50" />
                   <p>No server information available</p>
                   <Button
                     onClick={() => loadServerInfo(selectedServer)}
@@ -421,36 +421,40 @@ export default function SettingsNew() {
                 <SettingsIcon className="h-5 w-5" />
                 General Settings
               </h3>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <label className="font-medium">Theme</label>
-                    <p className="text-sm text-gray-600">Choose your preferred theme</p>
+                    <p className="text-sm text-muted-foreground">
+                      Choose your preferred theme
+                    </p>
                   </div>
-                  <select className="px-3 py-1 border rounded">
+                  <select className="px-3 py-1 border rounded bg-background text-foreground">
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
                     <option value="system">System</option>
                   </select>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <div>
                     <label className="font-medium">Auto Refresh</label>
-                    <p className="text-sm text-gray-600">Automatically refresh data every 30 seconds</p>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically refresh data every 30 seconds
+                    </p>
                   </div>
                   <input type="checkbox" className="h-4 w-4" />
                 </div>
               </div>
             </Card>
-          </div>
+          </PageLayout>
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
+          <div className="flex items-center justify-center h-full text-muted-foreground">
             Select a server from the list
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }

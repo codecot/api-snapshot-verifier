@@ -52,7 +52,7 @@ export function RetryDialog({ operation, onRetry, onDismiss, isRetrying = false 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div className="bg-card text-card-foreground rounded-lg shadow-xl max-w-md w-full mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
@@ -74,8 +74,9 @@ export function RetryDialog({ operation, onRetry, onDismiss, isRetrying = false 
           {/* Error Summary */}
           <div className="text-sm text-gray-600">
             <p>
-              <strong>{operation.failed.length}</strong> of <strong>{operation.endpoints.length}</strong> endpoints 
-              failed at {formatTime(operation.timestamp)}
+              <strong>{operation.failed.length}</strong> of{" "}
+              <strong>{operation.endpoints.length}</strong> endpoints failed at{" "}
+              {formatTime(operation.timestamp)}
             </p>
             {operation.error && (
               <p className="mt-2 text-red-600 bg-red-50 p-2 rounded">
@@ -87,7 +88,9 @@ export function RetryDialog({ operation, onRetry, onDismiss, isRetrying = false 
           {/* Failed Endpoints List */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-gray-900">Failed Endpoints:</h4>
+              <h4 className="text-sm font-medium text-gray-900">
+                Failed Endpoints:
+              </h4>
               <div className="flex gap-2 text-xs">
                 <button
                   onClick={selectAll}
@@ -105,7 +108,7 @@ export function RetryDialog({ operation, onRetry, onDismiss, isRetrying = false 
                 </button>
               </div>
             </div>
-            
+
             <div className="max-h-32 overflow-y-auto border border-gray-200 rounded">
               {operation.failed.map((endpoint) => (
                 <label
@@ -116,9 +119,11 @@ export function RetryDialog({ operation, onRetry, onDismiss, isRetrying = false 
                     type="checkbox"
                     checked={selectedEndpoints.has(endpoint)}
                     onChange={() => toggleEndpoint(endpoint)}
-                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-gray-800 border-gray-300 rounded focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700 font-mono">{endpoint}</span>
+                  <span className="text-sm text-gray-700 font-mono">
+                    {endpoint}
+                  </span>
                 </label>
               ))}
             </div>
@@ -129,7 +134,8 @@ export function RetryDialog({ operation, onRetry, onDismiss, isRetrying = false 
             <div className="text-sm text-green-600 bg-green-50 p-2 rounded flex items-center gap-2">
               <CheckCircle className="h-4 w-4" />
               <span>
-                {operation.endpoints.length - operation.failed.length} endpoints succeeded
+                {operation.endpoints.length - operation.failed.length} endpoints
+                succeeded
               </span>
             </div>
           )}
@@ -140,13 +146,9 @@ export function RetryDialog({ operation, onRetry, onDismiss, isRetrying = false 
           <div className="text-xs text-gray-500">
             {selectedEndpoints.size} selected for retry
           </div>
-          
+
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={onDismiss}
-              disabled={isRetrying}
-            >
+            <Button variant="outline" onClick={onDismiss} disabled={isRetrying}>
               Cancel
             </Button>
             <Button
@@ -162,7 +164,10 @@ export function RetryDialog({ operation, onRetry, onDismiss, isRetrying = false 
               ) : (
                 <>
                   <RefreshCw className="h-4 w-4" />
-                  Retry {selectedEndpoints.size > 1 ? `${selectedEndpoints.size} Endpoints` : 'Endpoint'}
+                  Retry{" "}
+                  {selectedEndpoints.size > 1
+                    ? `${selectedEndpoints.size} Endpoints`
+                    : "Endpoint"}
                 </>
               )}
             </Button>
@@ -170,5 +175,5 @@ export function RetryDialog({ operation, onRetry, onDismiss, isRetrying = false 
         </div>
       </div>
     </div>
-  )
+  );
 }

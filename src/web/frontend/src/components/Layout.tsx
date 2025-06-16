@@ -107,40 +107,53 @@ export default function Layout() {
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-card border shadow-lg"
         >
-          {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {isMobileMenuOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
         </button>
 
         {/* Sidebar */}
         <div
           className={cn(
-            'fixed md:static inset-y-0 left-0 z-40 bg-card border-r transition-all duration-300',
+            "fixed md:static inset-y-0 left-0 z-40 bg-card border-r transition-all duration-300",
             // Desktop width
-            isSidebarOpen ? 'w-64' : 'w-16',
+            isSidebarOpen ? "w-64" : "w-16",
             // Mobile visibility
-            isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+            isMobileMenuOpen
+              ? "translate-x-0"
+              : "-translate-x-full md:translate-x-0"
           )}
         >
           <div className="flex h-full flex-col">
             {/* Logo */}
             <div className="flex h-16 items-center px-4 border-b justify-between">
-              <Link 
+              <Link
                 to="/"
                 className={cn(
-                  "font-bold transition-all duration-300 hover:text-primary",
+                  "font-bold transition-all duration-300 inline-block hover:-translate-y-0.5 hover:drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]",
+                  isDark
+                    ? "text-muted-foreground hover:text-foreground"
+                    : "text-slate-900 hover:text-blue-700",
                   isSidebarOpen ? "text-xl" : "text-sm"
                 )}
                 onClick={() => {
-                  if (isMobile()) setIsMobileMenuOpen(false)
+                  if (isMobile()) setIsMobileMenuOpen(false);
                 }}
               >
-                {isSidebarOpen ? 'API Snapshot' : 'AS'}
+                {isSidebarOpen ? "API Snapshot" : "AS"}
               </Link>
               <button
                 onClick={toggleSidebar}
-                className="hidden md:block p-1 rounded hover:bg-accent"
-                title={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+                className="hidden md:block p-1 rounded hover:bg-accent transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/20 dark:hover:shadow-blue-400/20"
+                title={isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
               >
-                {isSidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                {isSidebarOpen ? (
+                  <ChevronLeft className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
               </button>
             </div>
 
@@ -151,20 +164,37 @@ export default function Layout() {
                   key={item.name}
                   to={item.href}
                   onClick={() => {
-                    if (isMobile()) setIsMobileMenuOpen(false)
+                    if (isMobile()) setIsMobileMenuOpen(false);
                   }}
                   className={({ isActive }) =>
                     cn(
-                      'flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                      "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 border",
                       isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                      !isSidebarOpen && 'justify-center'
+                        ? isDark
+                          ? "bg-muted text-foreground border-muted-foreground/40 font-semibold"
+                          : "bg-blue-100 text-blue-900 border-blue-300 font-semibold"
+                        : isDark
+                        ? "text-muted-foreground hover:bg-accent hover:text-accent-foreground border-transparent hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/20 hover:border-blue-500/50"
+                        : "text-slate-800 hover:bg-blue-50 hover:text-blue-800 border-transparent hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/20 hover:border-blue-300/50",
+                      !isSidebarOpen && "justify-center"
                     )
+                  }
+                  style={({ isActive }) =>
+                    isActive && isDark
+                      ? {
+                          textShadow:
+                            "0 0 8px hsl(var(--primary) / 0.4), 0 0 16px hsl(var(--primary) / 0.2)",
+                        }
+                      : {}
                   }
                   title={!isSidebarOpen ? item.name : undefined}
                 >
-                  <item.icon className={cn("shrink-0", isSidebarOpen ? "h-4 w-4" : "h-5 w-5")} />
+                  <item.icon
+                    className={cn(
+                      "shrink-0",
+                      isSidebarOpen ? "h-4 w-4" : "h-5 w-5"
+                    )}
+                  />
                   {isSidebarOpen && <span>{item.name}</span>}
                 </NavLink>
               ))}
@@ -175,13 +205,29 @@ export default function Layout() {
               <button
                 onClick={toggleDarkMode}
                 className={cn(
-                  "flex items-center gap-3 w-full px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors",
+                  "flex items-center gap-3 w-full px-3 py-2 text-sm font-medium rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-blue-500/20 dark:hover:shadow-blue-400/20",
                   !isSidebarOpen && "justify-center px-0"
                 )}
-                title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={isDark ? "Switch to light mode" : "Switch to dark mode"}
               >
-                {isDark ? <Sun className={cn("shrink-0", isSidebarOpen ? "h-4 w-4" : "h-5 w-5")} /> : <Moon className={cn("shrink-0", isSidebarOpen ? "h-4 w-4" : "h-5 w-5")} />}
-                {isSidebarOpen && <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>}
+                {isDark ? (
+                  <Sun
+                    className={cn(
+                      "shrink-0",
+                      isSidebarOpen ? "h-4 w-4" : "h-5 w-5"
+                    )}
+                  />
+                ) : (
+                  <Moon
+                    className={cn(
+                      "shrink-0",
+                      isSidebarOpen ? "h-4 w-4" : "h-5 w-5"
+                    )}
+                  />
+                )}
+                {isSidebarOpen && (
+                  <span>{isDark ? "Light Mode" : "Dark Mode"}</span>
+                )}
               </button>
             </div>
           </div>
@@ -202,7 +248,14 @@ export default function Layout() {
             <div className="flex items-center gap-4">
               {/* Spacer for mobile menu button */}
               <div className="w-10 md:hidden" />
-              <h2 className="text-lg font-semibold truncate">API Snapshot Verifier</h2>
+              <h2
+                className={cn(
+                  "text-lg font-semibold truncate",
+                  isDark ? "text-muted-foreground" : "text-slate-900"
+                )}
+              >
+                API Snapshot Verifier
+              </h2>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                   Frontend v{packageJson.version}
@@ -228,5 +281,5 @@ export default function Layout() {
         </div>
       </div>
     </div>
-  )
+  );
 }

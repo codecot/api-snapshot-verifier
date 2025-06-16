@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useBackendConfig } from '@/hooks/useBackendConfig'
-import toast from 'react-hot-toast'
+import toast from '@/components/ui/toast'
 
 interface CaptureStartedEvent {
   space: string

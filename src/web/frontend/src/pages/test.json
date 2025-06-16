@@ -1,0 +1,28 @@
+{
+  "success": true,
+  "health": {
+    "totalNodes": 1,
+    "activeNodes": 1,
+    "inactiveNodes": 0,
+    "disabledNodes": 0,
+    "unhealthyNodes": 0,
+    "nodes": [
+      {
+        "nodeId": "9126b498-73bd-41da-9e02-57c071db707e",
+        "status": "active",
+        "lastSeen": "2025-06-13T14:56:21.963Z",
+        "uptime": 85549.448837599,
+        "memoryUsage": {
+          "used": 30319512,
+          "total": 32370688,
+          "percentage": 93.66347727919776
+        },
+        "cpuUsage": 0,
+        "activeConnections": 0,
+        "requestsPerSecond": 0,
+        "errorRate": 0
+      }
+    ],
+    "lastUpdated": "2025-06-13T14:56:36.758Z"
+  }
+}
