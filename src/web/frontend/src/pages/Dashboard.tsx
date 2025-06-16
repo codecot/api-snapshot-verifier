@@ -1,17 +1,17 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, AlertCircle, CheckCircle, Clock, RefreshCw, Share2, Settings, Loader2, Camera, ExternalLink } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { snapshotsApi } from '@/api/snapshots'
-import { endpointsApi } from '@/api/endpoints'
+import { snapshotsApi } from '@/api/snapshots/snapshots.api'
+import { endpointsApi } from '@/api/endpoints/endpoints.api'
 import { useSpace } from '@/contexts/SpaceContext'
 import { useCaptureEvents } from '@/contexts/WebSocketContext'
 import { useCaptureProgress } from '@/contexts/CaptureProgressContext'
 import { ThinStatusBar } from '@/components/StatusBar'
 import { formatRelativeTime } from '@/utils/dateUtils'
 import { useState, useEffect } from 'react'
-import toast from 'react-hot-toast'
+import { toast } from '@/components/ui/toast'
 import { useNavigate } from 'react-router-dom'
+import { PageLayout, PageHeader, StatCard, Card, CardContent, CardHeader, CardTitle, EmptyState } from '@/design-system/components'
 
 export default function Dashboard() {
   const { currentSpace, shareUrl } = useSpace()
@@ -114,15 +114,20 @@ export default function Dashboard() {
   // Extract data from API response format  
   const snapshots = Array.isArray(snapshotsResponse) ? snapshotsResponse : []
   const endpoints = Array.isArray(endpointsResponse) ? endpointsResponse : []
+  
+  // Debug logging
+  console.log('Dashboard - currentSpace:', currentSpace)
+  console.log('Dashboard - snapshotsResponse:', snapshotsResponse)
+  console.log('Dashboard - snapshots array:', snapshots)
 
   // Calculate stats
   const successfulSnapshots = snapshots.filter((s: any) => s.status === 'success').length
   const failedSnapshots = snapshots.filter((s: any) => s.status === 'error' || s.error).length
   
   // Calculate average response time
-  const snapshotsWithTime = snapshots.filter((s: any) => s.responseTime && s.status === 'success')
+  const snapshotsWithTime = snapshots.filter((s: any) => s.duration && s.status === 'success')
   const avgResponseTime = snapshotsWithTime.length > 0
-    ? Math.round(snapshotsWithTime.reduce((acc: number, s: any) => acc + s.responseTime, 0) / snapshotsWithTime.length)
+    ? Math.round(snapshotsWithTime.reduce((acc: number, s: any) => acc + s.duration, 0) / snapshotsWithTime.length)
     : 0
 
   const stats = [
@@ -130,29 +135,33 @@ export default function Dashboard() {
       title: 'Total Endpoints',
       value: endpoints.length,
       icon: Activity,
-      color: 'text-blue-600',
-      bg: 'bg-blue-100',
+      color: 'text-blue-600 dark:text-blue-400',
+      bg: 'bg-blue-100 dark:bg-transparent',
+      borderColor: 'dark:border-blue-400',
     },
     {
       title: 'Successful Snapshots',
       value: successfulSnapshots,
       icon: CheckCircle,
-      color: 'text-green-600',
-      bg: 'bg-green-100',
+      color: 'text-green-600 dark:text-green-400',
+      bg: 'bg-green-100 dark:bg-transparent',
+      borderColor: 'dark:border-green-400',
     },
     {
       title: 'Failed Snapshots',
       value: failedSnapshots,
       icon: AlertCircle,
-      color: 'text-red-600',
-      bg: 'bg-red-100',
+      color: 'text-red-600 dark:text-red-400',
+      bg: 'bg-red-100 dark:bg-transparent',
+      borderColor: 'dark:border-red-400',
     },
     {
       title: 'Avg Response Time',
       value: `${avgResponseTime}ms`,
       icon: Clock,
-      color: 'text-yellow-600',
-      bg: 'bg-yellow-100',
+      color: 'text-yellow-600 dark:text-yellow-400',
+      bg: 'bg-yellow-100 dark:bg-transparent',
+      borderColor: 'dark:border-yellow-400',
     },
   ]
 
@@ -163,18 +172,18 @@ export default function Dashboard() {
   // Show message if no space is selected
   if (!currentSpace) {
     return (
-      <div className="flex items-center justify-center h-[50vh]">
-        <div className="text-center">
-          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">No Space Selected</h3>
-          <p className="text-muted-foreground">Please select a space from the dropdown above to view dashboard statistics.</p>
-        </div>
-      </div>
+      <PageLayout>
+        <EmptyState
+          icon={AlertCircle}
+          title="No Space Selected"
+          description="Please select a space from the dropdown above to view dashboard statistics."
+        />
+      </PageLayout>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <PageLayout maxWidth="xl">
       {/* Thin Status Bar */}
       <ThinStatusBar 
         isActive={isCapturing}
@@ -182,17 +191,12 @@ export default function Dashboard() {
         message={isCapturing ? `Capturing ${activeOperation?.type === 'bulk' ? 'multiple' : 'single'} snapshot(s)...` : undefined}
       />
       
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            Dashboard
-            {isCapturing && <Loader2 className="h-6 w-6 animate-spin text-blue-600" />}
-          </h1>
-          <p className="text-muted-foreground">
-            Monitor your API endpoints and snapshot performance
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
+      <PageHeader
+        title="Dashboard"
+        description="Monitor your API endpoints and snapshot performance"
+        badge={isCapturing && <Loader2 className="h-6 w-6 animate-spin text-blue-600" />}
+        actions={
+          <div className="flex items-center gap-4">
           {/* WebSocket Connection Status */}
           <div 
             className="flex items-center gap-2 text-sm cursor-help"
@@ -213,26 +217,28 @@ export default function Dashboard() {
           )}
           <Button
             onClick={() => navigate('/endpoints')}
-            className="gap-2"
+            variant="outline"
+            size="sm"
+            className="gap-2 dark:text-muted-foreground dark:border-muted-foreground/50"
           >
             <Settings className="h-4 w-4" />
-            Manage Endpoints
+            <span className="hidden md:inline">Manage Endpoints</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={handleShare}
-            className="gap-2"
+            className="gap-2 dark:text-muted-foreground dark:border-muted-foreground/50"
           >
             <Share2 className="h-4 w-4" />
-            Share
+            <span className="hidden md:inline">Share</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleRefresh()}
             disabled={isRefreshing}
-            className={`gap-2 ${!captureEvents.isConnected ? 'border-orange-300 text-orange-600 hover:bg-orange-50' : ''}`}
+            className={`gap-2 ${!captureEvents.isConnected ? 'border-orange-300 text-orange-600 hover:bg-orange-50 dark:border-orange-600 dark:text-orange-400 dark:hover:bg-orange-900/20' : 'dark:text-muted-foreground dark:border-muted-foreground/50'}`}
             title={
               !captureEvents.isConnected 
                 ? 'WebSocket disconnected - manual refresh recommended'
@@ -240,14 +246,17 @@ export default function Dashboard() {
             }
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Refreshing...' : 
-             !captureEvents.isConnected ? 'Refresh (Offline)' : 'Refresh'}
+            <span className="hidden md:inline">
+              {isRefreshing ? 'Refreshing...' : 
+               !captureEvents.isConnected ? 'Refresh (Offline)' : 'Refresh'}
+            </span>
           </Button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
         {stats.map((stat) => {
           const isClickable = stat.title === 'Total Endpoints' || 
                             stat.title === 'Successful Snapshots' || 
@@ -258,30 +267,14 @@ export default function Dashboard() {
           }
           
           return (
-            <Card 
-              key={stat.title} 
-              className={isClickable ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}
+            <StatCard
+              key={stat.title}
+              icon={stat.icon}
+              value={(loadingSnapshots || loadingEndpoints) ? '-' : stat.value}
+              label={stat.title}
               onClick={isClickable ? handleClick : undefined}
-            >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-1">
-                {stat.title}
-                {isClickable && <ExternalLink className="h-3 w-3 opacity-50" />}
-              </CardTitle>
-              <div className={`p-2 rounded-lg ${stat.bg}`}>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {(loadingSnapshots || loadingEndpoints) ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                ) : (
-                  stat.value
-                )}
-              </div>
-            </CardContent>
-          </Card>
+              iconClassName={`${stat.bg} ${stat.borderColor}`}
+            />
           )
         })}
       </div>
@@ -289,7 +282,7 @@ export default function Dashboard() {
       {/* Recent Activity */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Snapshots</CardTitle>
+          <CardTitle className="dark:text-muted-foreground">Recent Snapshots</CardTitle>
         </CardHeader>
         <CardContent>
           {loadingSnapshots ? (
@@ -297,19 +290,22 @@ export default function Dashboard() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : snapshots.length === 0 ? (
-            <div className="text-center py-8">
-              <Camera className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">No snapshots captured yet</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Go to the Endpoints page to capture your first snapshot
-              </p>
-            </div>
+            <EmptyState
+              icon={Camera}
+              title="No snapshots captured yet"
+              description="Go to the Endpoints page to capture your first snapshot"
+              action={{
+                label: 'Go to Endpoints',
+                onClick: () => navigate('/endpoints'),
+                variant: 'default'
+              }}
+            />
           ) : (
             <div className="space-y-4">
               {snapshots.slice(0, 5).map((snapshot: any) => (
                 <div
                   key={snapshot.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
+                  className="flex items-center justify-between p-4 border rounded-lg transition-all duration-200 hover:shadow hover:shadow-blue-500/10 hover:bg-white/50 dark:hover:bg-white/5"
                 >
                   <div className="flex items-center gap-4">
                     <div
@@ -340,8 +336,9 @@ export default function Dashboard() {
                     variant="outline"
                     size="sm"
                     onClick={() => navigate('/snapshots')}
+                    className="dark:text-muted-foreground dark:border-muted-foreground/50"
                   >
-                    View All Snapshots
+                    <span className="hidden md:inline">View All</span> Snapshots
                   </Button>
                 </div>
               )}
@@ -349,6 +346,6 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageLayout>
   )
 }

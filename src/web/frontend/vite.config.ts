@@ -13,6 +13,14 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    sourcemap: true,
+    outDir: '../../../dist/web',
+    emptyOutDir: true,
+  },
+  optimizeDeps: {
+    exclude: ['lucide-react'], // Exclude packages that have source map issues
+  },
   server: {
     port: parseInt(process.env.VITE_FRONTEND_PORT || '5173'),
     proxy: {
@@ -26,9 +34,5 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-  },
-  build: {
-    outDir: '../../../dist/web',
-    emptyOutDir: true,
   },
 })

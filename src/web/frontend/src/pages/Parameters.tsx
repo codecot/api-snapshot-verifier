@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Settings, RefreshCw, Save, Trash2, Home, Copy, Download, Upload, Edit3, X, Check, AlertTriangle, Plus, Wand2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import toast from 'react-hot-toast'
-import apiClient from '@/api/client'
+import { toast } from '@/components/ui/toast'
+import { parametersApi } from '@/api/parameters/parameters.api'
+import { endpointsApi } from '@/api/endpoints/endpoints.api'
 
 interface ParameterWithMetadata {
   name: string
@@ -39,20 +40,20 @@ export default function Parameters() {
     setIsLoading(true)
     try {
       // Load parameters
-      const [paramsResponse, usageResponse] = await Promise.all([
-        apiClient.get(`/parameters/${currentSpace}`),
-        apiClient.get(`/parameters/${currentSpace}/usage`)
+      const [params, usage] = await Promise.all([
+        parametersApi.getAll(currentSpace),
+        parametersApi.getUsage(currentSpace).catch(() => ({} as ParameterUsage))
       ])
       
-      const params = paramsResponse.data.data || {}
-      const usage = usageResponse.data.data || {}
+      console.log('Parameters loaded:', params)
+      console.log('Usage data:', usage)
       
       // Convert to array with metadata
       const paramArray: ParameterWithMetadata[] = Object.entries(params).map(([name, value]) => ({
         name,
-        value: value as string,
+        value: typeof value === 'object' ? JSON.stringify(value) : String(value),
         pattern: detectPattern(name),
-        usedIn: usage[name] || []
+        usedIn: Array.isArray(usage[name]) ? usage[name] : []
       }))
       
       setParameters(paramArray)
@@ -85,7 +86,12 @@ export default function Parameters() {
         paramsObject[p.name] = p.value
       })
       
-      await apiClient.put(`/parameters/${currentSpace}`, paramsObject)
+      // Save all parameters
+      await Promise.all(
+        parameters.map(param => 
+          parametersApi.update(currentSpace, param.name, param.value)
+        )
+      )
       toast.success('All parameters saved successfully')
       
       // Invalidate spaces query to update statistics
@@ -119,7 +125,7 @@ export default function Parameters() {
     if (!param || !param.editValue) return
     
     try {
-      await apiClient.put(`/parameters/${currentSpace}/${paramName}`, { value: param.editValue })
+      await parametersApi.update(currentSpace, paramName, param.editValue)
       
       // Update local state
       setParameters(prev => prev.map(p => 
@@ -144,7 +150,7 @@ export default function Parameters() {
     }
     
     try {
-      await apiClient.delete(`/parameters/${currentSpace}/${paramName}`)
+      await parametersApi.delete(currentSpace, paramName)
       setParameters(prev => prev.filter(p => p.name !== paramName))
       toast.success(`Parameter "${paramName}" deleted`)
       
@@ -168,7 +174,7 @@ export default function Parameters() {
     }
     
     try {
-      await apiClient.put(`/parameters/${currentSpace}/${newParamName}`, { value: newParamValue })
+      await parametersApi.create(currentSpace, newParamName, newParamValue)
       
       // Update local state
       const newParam: ParameterWithMetadata = {
@@ -199,8 +205,9 @@ export default function Parameters() {
     }
     
     try {
-      const response = await apiClient.post(`/parameters/${currentSpace}/initialize`)
-      const { newCount, totalCount } = response.data
+      // TODO: Implement initialize endpoint in parametersApi
+      const response = { newCount: 0, totalCount: 0 }
+      const { newCount, totalCount } = response
       
       if (newCount > 0) {
         toast.success(`Initialized ${newCount} new parameters (${totalCount} total)`)
@@ -303,7 +310,7 @@ export default function Parameters() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Space Parameters</h1>
+          <h1 className="text-2xl font-bold tracking-tight dark:text-muted-foreground">Space Parameters</h1>
           <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded">
             {currentSpace}
           </span>
@@ -482,7 +489,7 @@ export default function Parameters() {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-mono text-lg font-semibold">{param.name}</h3>
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                      <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 px-2 py-1 rounded">
                         {param.pattern}
                       </span>
                     </div>
@@ -519,13 +526,13 @@ export default function Parameters() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-3 mb-3">
-                        <code className="bg-gray-100 px-3 py-1 rounded text-sm">
-                          {param.value}
+                        <code className="bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded text-sm">
+                          {String(param.value)}
                         </code>
                         <button
                           onClick={async () => {
                             try {
-                              await navigator.clipboard.writeText(param.value)
+                              await navigator.clipboard.writeText(String(param.value))
                               toast.success('Value copied to clipboard')
                             } catch {
                               toast.error('Failed to copy value')
@@ -539,7 +546,7 @@ export default function Parameters() {
                       </div>
                     )}
                     
-                    {param.usedIn.length > 0 && (
+                    {param.usedIn && param.usedIn.length > 0 && (
                       <div className="text-sm text-gray-500">
                         Used in: {param.usedIn.map((endpoint, index) => (
                           <span key={endpoint}>

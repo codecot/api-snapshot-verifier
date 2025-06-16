@@ -1,4 +1,4 @@
-import toast from 'react-hot-toast'
+import toast from '@/components/ui/toast'
 
 interface QueuedToast {
   id: string

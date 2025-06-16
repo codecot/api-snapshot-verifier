@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useLocalServers } from '@/hooks/useLocalServers'
 import { useBackendConfig } from '@/hooks/useBackendConfig'
-import toast from 'react-hot-toast'
+import { toast } from '@/components/ui/toast'
 
 // Server Info Display Component
 function ServerInfoCard({ serverInfo }: { serverInfo: any }) {
@@ -26,56 +26,56 @@ function ServerInfoCard({ serverInfo }: { serverInfo: any }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-600">Version</h4>
+          <h4 className="text-sm font-medium text-muted-foreground">Version</h4>
           <p className="text-lg font-semibold">{serverInfo.server.version}</p>
         </div>
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-600">Platform</h4>
+          <h4 className="text-sm font-medium text-muted-foreground">Platform</h4>
           <p className="text-lg font-semibold">{serverInfo.server.platform}</p>
         </div>
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-gray-600">Database Statistics</h4>
+        <h4 className="text-sm font-medium text-muted-foreground">Database Statistics</h4>
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-blue-50 rounded p-3 text-center">
-            <p className="text-2xl font-bold text-blue-700">{serverInfo.database.statistics.spaces}</p>
-            <p className="text-xs text-blue-600">Spaces</p>
+          <div className="bg-blue-50 dark:bg-transparent dark:border dark:border-blue-500/50 rounded p-3 text-center">
+            <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">{serverInfo.database.statistics.spaces}</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400">Spaces</p>
           </div>
-          <div className="bg-purple-50 rounded p-3 text-center">
-            <p className="text-2xl font-bold text-purple-700">{serverInfo.database.statistics.endpoints}</p>
-            <p className="text-xs text-purple-600">Endpoints</p>
+          <div className="bg-purple-50 dark:bg-transparent dark:border dark:border-purple-500/50 rounded p-3 text-center">
+            <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">{serverInfo.database.statistics.endpoints}</p>
+            <p className="text-xs text-purple-600 dark:text-purple-400">Endpoints</p>
           </div>
-          <div className="bg-green-50 rounded p-3 text-center">
-            <p className="text-2xl font-bold text-green-700">{serverInfo.database.statistics.parameters}</p>
-            <p className="text-xs text-green-600">Parameters</p>
+          <div className="bg-green-50 dark:bg-transparent dark:border dark:border-green-500/50 rounded p-3 text-center">
+            <p className="text-2xl font-bold text-green-700 dark:text-green-400">{serverInfo.database.statistics.parameters}</p>
+            <p className="text-xs text-green-600 dark:text-green-400">Parameters</p>
           </div>
         </div>
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-sm font-medium text-gray-600">Features</h4>
+        <h4 className="text-sm font-medium text-muted-foreground">Features</h4>
         <div className="grid grid-cols-2 gap-2 text-sm">
           {Object.entries(serverInfo.features).map(([feature, enabled]) => (
             <div key={feature} className="flex items-center gap-2">
               {enabled ? (
                 <CheckCircle className="h-4 w-4 text-green-500" />
               ) : (
-                <AlertCircle className="h-4 w-4 text-gray-400" />
+                <AlertCircle className="h-4 w-4 text-muted-foreground/50" />
               )}
-              <span className={enabled ? 'text-gray-700' : 'text-gray-400'}>
+              <span className={enabled ? 'text-muted-foreground' : 'text-muted-foreground/50'}>
                 {feature.replace(/([A-Z])/g, ' $1').trim()}
               </span>
             </div>
           ))}
         </div>
         {serverInfo.websocket.available && (
-          <div className="mt-2 pt-2 border-t flex items-center justify-between text-xs text-gray-600">
+          <div className="mt-2 pt-2 border-t border-muted-foreground/20 flex items-center justify-between text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               {serverInfo.websocket.enabled ? (
                 <Wifi className="h-3 w-3 text-green-500" />
               ) : (
-                <WifiOff className="h-3 w-3 text-gray-400" />
+                <WifiOff className="h-3 w-3 text-muted-foreground/50" />
               )}
               WebSocket {serverInfo.websocket.enabled ? 'enabled' : 'disabled'}
             </span>
@@ -281,15 +281,15 @@ export default function SettingsLocal() {
   return (
     <div className="flex h-full">
       {/* Left Sidebar - Server List */}
-      <div className="w-80 border-r bg-gray-50 dark:bg-gray-900 p-4 space-y-2">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+      <div className="w-80 border-r bg-muted/30 p-4 space-y-2">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 dark:text-muted-foreground">
           <Server className="h-5 w-5" />
           Backend Servers
         </h2>
         
         {loadingServers ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/50" />
           </div>
         ) : (
           <>
@@ -299,26 +299,26 @@ export default function SettingsLocal() {
                 onClick={() => setSelectedServerId(server.id)}
                 className={`w-full text-left p-3 rounded-lg transition-colors ${
                   selectedServerId === server.id
-                    ? 'bg-white dark:bg-gray-800 border-2 border-blue-500 shadow-sm'
-                    : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                    ? 'bg-card border-2 border-blue-500 shadow-sm'
+                    : 'bg-card border border-border hover:border-muted-foreground/50'
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{server.name}</span>
+                      <span className="font-medium dark:text-muted-foreground">{server.name}</span>
                       {server.isDefault && (
                         <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                       )}
                       {server.url === backendUrl && (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                        <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 px-2 py-0.5 rounded">
                           Active
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{server.url}</div>
+                    <div className="text-xs text-muted-foreground/70 mt-1">{server.url}</div>
                     {server.serverInfo && (
-                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      <div className="text-xs text-muted-foreground/70 mt-1">
                         v{server.serverInfo.server.version} • {server.serverInfo.database.statistics.spaces} spaces
                       </div>
                     )}
@@ -326,7 +326,7 @@ export default function SettingsLocal() {
                   {server.serverInfo?.websocket.available && (
                     <div className="ml-2">
                       <div className={`w-2 h-2 rounded-full ${
-                        server.serverInfo.websocket.enabled ? 'bg-green-500' : 'bg-gray-300'
+                        server.serverInfo.websocket.enabled ? 'bg-green-500' : 'bg-muted-foreground/30'
                       }`} />
                     </div>
                   )}
@@ -338,7 +338,7 @@ export default function SettingsLocal() {
             {!isAddingServer ? (
               <button
                 onClick={() => setIsAddingServer(true)}
-                className="w-full p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:border-gray-400 hover:text-gray-700 transition-colors flex items-center justify-center gap-2"
+                className="w-full p-3 border-2 border-dashed border-muted-foreground/30 rounded-lg text-muted-foreground hover:border-muted-foreground/50 hover:text-muted-foreground transition-colors flex items-center justify-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 Add Server
@@ -350,7 +350,7 @@ export default function SettingsLocal() {
                   placeholder="Server URL"
                   value={newServerUrl}
                   onChange={(e) => setNewServerUrl(e.target.value)}
-                  className="w-full px-3 py-2 border rounded text-sm dark:bg-gray-800"
+                  className="w-full px-3 py-2 border border-border rounded text-sm bg-background"
                   autoFocus
                 />
                 <input
@@ -358,7 +358,7 @@ export default function SettingsLocal() {
                   placeholder="Name (optional)"
                   value={newServerName}
                   onChange={(e) => setNewServerName(e.target.value)}
-                  className="w-full px-3 py-2 border rounded text-sm dark:bg-gray-800"
+                  className="w-full px-3 py-2 border border-border rounded text-sm bg-background"
                 />
                 <div className="flex gap-2">
                   <Button
@@ -398,20 +398,20 @@ export default function SettingsLocal() {
             {/* Server Header */}
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2">
+                <h1 className="text-2xl font-bold flex items-center gap-2 dark:text-muted-foreground">
                   {selectedServer.name}
                   {selectedServer.isDefault && (
-                    <span className="text-sm font-normal bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded">
+                    <span className="text-sm font-normal bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400 px-2 py-1 rounded">
                       Default
                     </span>
                   )}
                   {selectedServer.url === backendUrl && (
-                    <span className="text-sm font-normal bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-2 py-1 rounded">
+                    <span className="text-sm font-normal bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-400 px-2 py-1 rounded">
                       Active
                     </span>
                   )}
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">{selectedServer.url}</p>
+                <p className="text-muted-foreground mt-1">{selectedServer.url}</p>
               </div>
               
               <div className="flex gap-2">
@@ -420,6 +420,7 @@ export default function SettingsLocal() {
                     onClick={() => handleSetDefault(selectedServer.id)}
                     variant="outline"
                     size="sm"
+                    className="dark:text-muted-foreground dark:border-muted-foreground/50 transition-all duration-200 hover:bg-white/50 dark:hover:bg-white/5 hover:backdrop-blur-sm"
                   >
                     <Star className="h-4 w-4 mr-1" />
                     Set as Default
@@ -430,6 +431,7 @@ export default function SettingsLocal() {
                   variant="outline"
                   size="sm"
                   disabled={testingServerId === selectedServer.id}
+                  className="dark:text-muted-foreground dark:border-muted-foreground/50 transition-all duration-200 hover:bg-white/50 dark:hover:bg-white/5 hover:backdrop-blur-sm"
                 >
                   {testingServerId === selectedServer.id ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -443,7 +445,7 @@ export default function SettingsLocal() {
                     onClick={() => handleDeleteServer(selectedServer.id)}
                     variant="outline"
                     size="sm"
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 dark:border-muted-foreground/50 transition-all duration-200 hover:bg-white/50 dark:hover:bg-white/5 hover:backdrop-blur-sm"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -455,12 +457,12 @@ export default function SettingsLocal() {
             {selectedServer.serverInfo ? (
               <Card className="p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <h3 className="text-lg font-semibold flex items-center gap-2 dark:text-muted-foreground">
                     <Database className="h-5 w-5" />
                     Server Information
                   </h3>
                   {selectedServer.lastConnected && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-muted-foreground/70">
                       Last updated: {new Date(selectedServer.lastConnected).toLocaleString()}
                     </span>
                   )}
@@ -469,15 +471,15 @@ export default function SettingsLocal() {
               </Card>
             ) : testingServerId === selectedServer.id ? (
               <Card className="p-8">
-                <div className="text-center text-gray-500">
-                  <Loader2 className="h-12 w-12 mx-auto mb-2 text-gray-400 animate-spin" />
+                <div className="text-center text-muted-foreground">
+                  <Loader2 className="h-12 w-12 mx-auto mb-2 text-muted-foreground/50 animate-spin" />
                   <p>Fetching server information...</p>
                 </div>
               </Card>
             ) : (
               <Card className="p-8">
-                <div className="text-center text-gray-500">
-                  <AlertCircle className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                <div className="text-center text-muted-foreground">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-2 text-muted-foreground/50" />
                   <p>No server information available</p>
                   <Button
                     onClick={() => handleTestConnection(selectedServer.id)}
@@ -493,7 +495,7 @@ export default function SettingsLocal() {
 
             {/* General Settings */}
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 dark:text-muted-foreground">
                 <SettingsIcon className="h-5 w-5" />
                 General Settings
               </h3>
@@ -501,8 +503,8 @@ export default function SettingsLocal() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <label className="font-medium">Real-time Updates</label>
-                    <p className="text-sm text-gray-600">Use WebSocket for instant updates when available</p>
+                    <label className="font-medium dark:text-muted-foreground">Real-time Updates</label>
+                    <p className="text-sm text-muted-foreground/70">Use WebSocket for instant updates when available</p>
                   </div>
                   <input
                     type="checkbox"
@@ -514,10 +516,10 @@ export default function SettingsLocal() {
                 
                 <div className="flex items-center justify-between">
                   <div>
-                    <label className="font-medium">Theme</label>
-                    <p className="text-sm text-gray-600">Choose your preferred theme</p>
+                    <label className="font-medium dark:text-muted-foreground">Theme</label>
+                    <p className="text-sm text-muted-foreground/70">Choose your preferred theme</p>
                   </div>
-                  <select className="px-3 py-1 border rounded dark:bg-gray-800">
+                  <select className="px-3 py-1 border border-border rounded bg-background">
                     <option value="light">Light</option>
                     <option value="dark">Dark</option>
                     <option value="system">System</option>

@@ -12,13 +12,15 @@ export interface ApiEndpoint {
 
 export interface Snapshot {
   id: string
-  endpointName: string
+  filename?: string // Filename without .json extension
+  endpoint: string
   timestamp: string
-  environment: string
-  status: number
-  responseTime: number
-  data: any
+  status: 'success' | 'error' | 'pending'
+  url: string
+  method: string
+  responseStatus?: number
   error?: string
+  duration?: number
 }
 
 export interface ComparisonResult {

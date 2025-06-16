@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { useWebSocket } from '@/contexts/WebSocketContext'
-import apiClient from '@/api/client'
+import { spacesApi } from '@/api/spaces/spaces.api'
 
 export interface SpaceInfo {
   name: string
@@ -46,18 +46,37 @@ export function useSpaceConfig(): SpaceConfig {
   }, [urlSpace, currentSpace])
 
   // Fetch available spaces
-  const { data: spacesResponse, isLoading, refetch } = useQuery({
+  const { data: spacesData, isLoading, refetch } = useQuery({
     queryKey: ['spaces'],
     queryFn: async () => {
-      const response = await apiClient.get('/config/spaces')
-      return response.data
+      // Fetch directly from the API endpoint to get the correct format
+      const backendConfig = localStorage.getItem('api-snapshot-backend-config')
+      let baseUrl = 'http://localhost:3301'
+      if (backendConfig) {
+        try {
+          const config = JSON.parse(backendConfig)
+          const activeServer = config.servers?.find((s: any) => s.isActive)
+          if (activeServer?.url) {
+            baseUrl = activeServer.url.replace(/\/+$/, '')
+          }
+        } catch (e) {
+          console.error('Failed to parse backend config:', e)
+        }
+      }
+      
+      const response = await fetch(`${baseUrl}/api/config/spaces`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch spaces')
+      }
+      const result = await response.json()
+      return result.data as SpaceInfo[]
     },
     retry: 1,
     refetchOnWindowFocus: true, // Auto-refresh on window focus
     refetchInterval: 10000, // Auto-refresh every 10 seconds for more responsive updates
   })
 
-  const spacesInfo: SpaceInfo[] = spacesResponse?.data || []
+  const spacesInfo: SpaceInfo[] = spacesData || []
   const availableSpaces = spacesInfo.map(s => s.name)
   
   // Listen for WebSocket events to refresh spaces
@@ -114,7 +133,7 @@ export function useSpaceConfig(): SpaceConfig {
 
   const createSpace = async (space: string, config?: any) => {
     try {
-      await apiClient.post('/config/spaces', { space, config })
+      await spacesApi.create({ name: space, ...config })
       await refetch() // Refresh spaces list
       setError(null)
     } catch (error: any) {
@@ -126,7 +145,7 @@ export function useSpaceConfig(): SpaceConfig {
 
   const deleteSpace = async (space: string) => {
     try {
-      await apiClient.delete(`/config/spaces/${space}`)
+      await spacesApi.deleteSpace(space)
       await refetch() // Refresh spaces list
       
       // If we deleted the current space, switch to default or first available

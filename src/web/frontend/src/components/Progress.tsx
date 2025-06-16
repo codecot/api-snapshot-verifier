@@ -73,76 +73,72 @@ export function Progress({
           operationType={operation}
         />
       )}
-      
-      <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+
+      <div className="bg-card text-card-foreground border border-border rounded-lg p-4 shadow-sm">
         {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          {inProgress ? (
-            <Clock className="h-4 w-4 text-blue-600 animate-pulse" />
-          ) : failed === 0 ? (
-            <CheckCircle className="h-4 w-4 text-green-600" />
-          ) : (
-            <AlertCircle className="h-4 w-4 text-red-600" />
-          )}
-          <span className="font-medium text-gray-900">
-            {getStatusText()}
-          </span>
-        </div>
-        
-        {/* Cancel button */}
-        {inProgress && onCancel && (
-          <button
-            onClick={onCancel}
-            className="text-gray-400 hover:text-red-600 transition-colors"
-            title="Cancel operation"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-        <div
-          className={`h-2 rounded-full transition-all duration-300 ${getStatusColor()}`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-
-      {/* Details */}
-      {showDetails && (
-        <div className="flex items-center justify-between text-sm text-gray-600">
-          <div className="flex items-center gap-4">
-            <span>{percentage}% complete</span>
-            <span className="flex items-center gap-1">
-              <CheckCircle className="h-3 w-3 text-green-600" />
-              {completed}
-            </span>
-            {failed > 0 && (
-              <span className="flex items-center gap-1">
-                <AlertCircle className="h-3 w-3 text-red-600" />
-                {failed}
-              </span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            {inProgress ? (
+              <Clock className="h-4 w-4 text-blue-600 animate-pulse" />
+            ) : failed === 0 ? (
+              <CheckCircle className="h-4 w-4 text-green-600" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-red-600" />
             )}
-            {remaining > 0 && (
+            <span className="font-medium text-gray-900">{getStatusText()}</span>
+          </div>
+
+          {/* Cancel button */}
+          {inProgress && onCancel && (
+            <button
+              onClick={onCancel}
+              className="text-gray-400 hover:text-red-600 transition-colors"
+              title="Cancel operation"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        {/* Progress Bar */}
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+          <div
+            className={`h-2 rounded-full transition-all duration-300 ${getStatusColor()}`}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+
+        {/* Details */}
+        {showDetails && (
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <div className="flex items-center gap-4">
+              <span>{percentage}% complete</span>
               <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3 text-gray-400" />
-                {remaining} remaining
+                <CheckCircle className="h-3 w-3 text-green-600" />
+                {completed}
               </span>
+              {failed > 0 && (
+                <span className="flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3 text-red-600" />
+                  {failed}
+                </span>
+              )}
+              {remaining > 0 && (
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3 text-gray-400" />
+                  {remaining} remaining
+                </span>
+              )}
+            </div>
+
+            {inProgress && timeElapsed > 0 && (
+              <span className="text-gray-500">{formatTime(timeElapsed)}</span>
             )}
           </div>
-          
-          {inProgress && timeElapsed > 0 && (
-            <span className="text-gray-500">
-              {formatTime(timeElapsed)}
-            </span>
-          )}
-        </div>
-      )}
+        )}
       </div>
     </div>
-  )
+  );
 }
 
 // Compact version for inline use
