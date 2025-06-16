@@ -2,13 +2,13 @@ import { promises as fs } from 'fs';
 import { join, dirname } from 'path';
 import { ensureDir, pathExists } from 'fs-extra';
 import { ApiSnapshot } from '../types.js';
-import { IStorageProvider } from '../core/interfaces.js';
+import { StorageProvider } from '../core/interfaces.js';
 
 /**
  * Improved storage provider that organizes snapshots by endpoint ID
  * Structure: snapshots/{space}/endpoint-{id}/run-{timestamp}.json
  */
-export class ImprovedStorageProvider implements IStorageProvider {
+export class ImprovedStorageProvider implements StorageProvider {
   constructor(
     private readonly snapshotDir: string = './snapshots',
     private readonly baselineDir: string = './baselines'
@@ -53,21 +53,32 @@ export class ImprovedStorageProvider implements IStorageProvider {
     return `run-${Date.now()}`;
   }
 
+  private endpointIdMap: Map<string, number | string> = new Map();
+  
+  /**
+   * Set endpoint ID for a given endpoint name
+   */
+  setEndpointId(endpointName: string, endpointId: number | string) {
+    this.endpointIdMap.set(endpointName, endpointId);
+  }
+  
   /**
    * Save snapshot with improved directory structure
    */
   async saveSnapshot(
     snapshot: ApiSnapshot, 
-    isBaseline: boolean = false,
-    endpointId?: number | string
+    baseline: boolean = false
   ): Promise<string> {
-    if (isBaseline) {
+    if (baseline) {
       return this.saveBaseline(snapshot);
     }
 
+    // Get endpoint ID from our map or use the name
+    const endpointId = this.endpointIdMap.get(snapshot.endpoint.name) || snapshot.endpoint.name;
+    
     // Determine endpoint folder
     const endpointFolder = this.getEndpointFolder(
-      endpointId || snapshot.endpoint.name,
+      endpointId,
       snapshot.endpoint.name
     );
     
@@ -247,9 +258,18 @@ export class ImprovedStorageProvider implements IStorageProvider {
   }
 
   /**
-   * Cleanup old snapshots with per-endpoint retention
+   * Cleanup old snapshots - implementation of StorageProvider interface
    */
-  async cleanupOldSnapshots(endpointId: string | number, keepCount: number = 10): Promise<number> {
+  async cleanupSnapshots(endpointName: string, keepCount: number = 10): Promise<number> {
+    // Get endpoint ID from our map or use the name
+    const endpointId = this.endpointIdMap.get(endpointName) || endpointName;
+    return this.cleanupOldSnapshots(endpointId, keepCount);
+  }
+  
+  /**
+   * Cleanup old snapshots with per-endpoint retention (internal method)
+   */
+  private async cleanupOldSnapshots(endpointId: string | number, keepCount: number = 10): Promise<number> {
     const snapshots = await this.listSnapshots(endpointId);
     
     if (snapshots.length <= keepCount) {

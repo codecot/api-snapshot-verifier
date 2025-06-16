@@ -24,7 +24,7 @@ export default function Dashboard() {
   
   const { data: snapshotsResponse, refetch: refetchSnapshots, isLoading: loadingSnapshots } = useQuery({
     queryKey: ['snapshots', currentSpace],
-    queryFn: () => snapshotsApi.getAll(currentSpace),
+    queryFn: () => snapshotsApi.getAllBySpace(currentSpace!),
     refetchOnWindowFocus: true, // Auto-refresh on page focus
     enabled: !!currentSpace, // Only fetch if space is selected
   })

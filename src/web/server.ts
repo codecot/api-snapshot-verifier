@@ -192,9 +192,13 @@ export class WebServer {
     const { parameterRoutes } = await import('./routes/parameters.js');
     await this.app.register(parameterRoutes, { prefix: '/api/parameters' });
     
-    // Space management routes
+    // Space management routes (hierarchical API)
+    const { spacesHierarchicalRoutes } = await import('./routes/spaces-hierarchical.js');
+    await this.app.register(spacesHierarchicalRoutes, { prefix: '/api/spaces' });
+    
+    // Keep legacy spaces routes for compatibility
     const { spacesRoutes } = await import('./routes/spaces.js');
-    await this.app.register(spacesRoutes, { prefix: '/api/spaces' });
+    await this.app.register(spacesRoutes, { prefix: '/api/spaces-legacy' });
     
     // Server management routes - Disabled: Now using localStorage
     // const { serversRoutes } = await import('./routes/servers.js');

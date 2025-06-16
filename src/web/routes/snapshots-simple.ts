@@ -604,37 +604,32 @@ async function snapshotRoutes(fastify: FastifyInstance) {
         const results = [];
         
         for (const endpoint of endpointsToCapture) {
+          // Get database info upfront for both success and failure cases
+          const { DatabaseService } = await import('../../database/database-service.js');
+          const dbService = new DatabaseService();
+          const spaceRecord = dbService.getSpaceByName(targetSpace);
+          let endpointId: number | undefined;
+          
+          if (spaceRecord) {
+            const endpointRecords = dbService.getEndpointsBySpaceId(spaceRecord.id);
+            const endpointRecord = endpointRecords.find(ep => ep.name === endpoint.name);
+            endpointId = endpointRecord?.id;
+          }
+          
           try {
             const result = await snapshotService.captureSnapshot(endpoint);
             
             if (result.success && result.snapshot) {
-              // Save the snapshot using improved storage provider
-              const { ImprovedStorageProvider } = await import('../../services/improved-storage-provider.js');
+              // Get the storage provider from the snapshot service
+              const storage = storageProvider as any;
               
-              // Sanitize space name to prevent path traversal
-              const sanitizedSpace = targetSpace.replace(/[^a-zA-Z0-9_-]/g, '_');
-              if (sanitizedSpace !== targetSpace) {
-                (request as any).logger?.warn(`Space name sanitized from '${targetSpace}' to '${sanitizedSpace}'`);
+              // If it's the ImprovedStorageProvider, set the endpoint ID
+              if (storage.setEndpointId && endpointId) {
+                storage.setEndpointId(endpoint.name, endpointId);
               }
               
-              // Get endpoint ID from database for folder organization
-              const { DatabaseService } = await import('../../database/database-service.js');
-              const dbService = new DatabaseService();
-              const spaceRecord = dbService.getSpaceByName(targetSpace);
-              let endpointId: number | undefined;
-              
-              if (spaceRecord) {
-                const endpointRecords = dbService.getEndpointsBySpaceId(spaceRecord.id);
-                const endpointRecord = endpointRecords.find(ep => ep.name === endpoint.name);
-                endpointId = endpointRecord?.id;
-              }
-              
-              const spaceAwareStorage = new ImprovedStorageProvider(
-                sanitizedSpace !== 'default' ? `./snapshots/${sanitizedSpace}` : './snapshots',
-                sanitizedSpace !== 'default' ? `./snapshots/${sanitizedSpace}/baseline` : './snapshots/baseline'
-              );
-              
-              const filePath = await spaceAwareStorage.saveSnapshot(result.snapshot, false, endpointId);
+              // Save the snapshot
+              const filePath = await storage.saveSnapshot(result.snapshot, false);
               console.log(`📁 Snapshot saved to: ${filePath} for space: ${targetSpace}`);
               
               // Record snapshot in database
@@ -654,7 +649,6 @@ async function snapshotRoutes(fastify: FastifyInstance) {
                   );
                   console.log(`📊 Snapshot recorded in database for endpoint '${endpoint.name}' (ID: ${endpointId})`);
                 }
-                dbService.close();
               } catch (dbError) {
                 console.warn(`Failed to record snapshot in database:`, dbError);
               }
@@ -683,7 +677,6 @@ async function snapshotRoutes(fastify: FastifyInstance) {
                   );
                   console.log(`📊 Failed snapshot recorded in database for endpoint '${endpoint.name}' (ID: ${endpointId})`);
                 }
-                dbService.close();
               } catch (dbError) {
                 console.warn(`Failed to record failed snapshot in database:`, dbError);
               }
@@ -704,6 +697,9 @@ async function snapshotRoutes(fastify: FastifyInstance) {
             });
             
             (request as any).logger?.error(`❌ Error capturing snapshot for endpoint '${endpoint.name}' in space '${targetSpace}':`, error);
+          } finally {
+            // Always close the database connection
+            dbService.close();
           }
         }
         

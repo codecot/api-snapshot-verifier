@@ -22,6 +22,7 @@ import { Config } from '../types.js';
 // Core service implementations
 import { AxiosHttpClient } from '../services/http-client.js';
 import { FileSystemStorageProvider } from '../services/storage-provider.js';
+import { ImprovedStorageProvider } from '../services/improved-storage-provider.js';
 import { JsonDiffProvider } from '../services/diff-provider.js';
 import { DefaultSnapshotService } from '../services/snapshot-service.js';
 
@@ -155,7 +156,7 @@ export class Application {
     this.container.registerSingleton(ServiceKeys.HTTP_CLIENT, () => new AxiosHttpClient());
     
     this.container.registerSingleton(ServiceKeys.STORAGE, () => 
-      new FileSystemStorageProvider(
+      new ImprovedStorageProvider(
         this.appConfig.config.snapshotDir,
         this.appConfig.config.baselineDir
       )
@@ -211,7 +212,7 @@ export class Application {
 
     // Register storage providers
     const storageRegistry = await this.container.resolve<GenericRegistry<StorageProvider>>(ServiceKeys.STORAGE_REGISTRY);
-    storageRegistry.register('filesystem', new FileSystemStorageProvider(
+    storageRegistry.register('filesystem', new ImprovedStorageProvider(
       this.appConfig.config.snapshotDir,
       this.appConfig.config.baselineDir
     ));
