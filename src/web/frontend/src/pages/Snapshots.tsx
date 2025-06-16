@@ -28,8 +28,9 @@ export default function Snapshots() {
   // Fetch snapshots
   const { data: snapshots = [], isLoading, error } = useQuery({
     queryKey: ['snapshots', currentSpace],
-    queryFn: () => snapshotsApi.getAll(currentSpace),
+    queryFn: () => snapshotsApi.getAllBySpace(currentSpace!),
     refetchInterval: 10000, // Refresh every 10 seconds
+    enabled: !!currentSpace, // Only fetch if space is selected
   })
 
   // Delete snapshot mutation

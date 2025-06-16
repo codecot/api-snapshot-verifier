@@ -81,12 +81,13 @@ export default function Endpoints() {
 
   const { data: snapshotsResponse, refetch: refetchSnapshots } = useQuery({
     queryKey: ["snapshots", currentSpace],
-    queryFn: () => snapshotsApi.getAll(currentSpace),
+    queryFn: () => snapshotsApi.getAllBySpace(currentSpace!),
     refetchOnWindowFocus: true,
     staleTime: 5000,
     gcTime: 5 * 60 * 1000,
     refetchOnMount: true,
     refetchOnReconnect: "always",
+    enabled: !!currentSpace,
   });
 
   const endpoints = Array.isArray(endpointsResponse) ? endpointsResponse : [];
@@ -273,7 +274,7 @@ export default function Endpoints() {
     setSnapshotting((prev) => new Set(prev).add(endpointName));
 
     try {
-      await snapshotsApi.capture(currentSpace, [endpointName]);
+      await snapshotsApi.captureBySpace(currentSpace!, [endpointName]);
       captureProgress.updateProgress(operationId, { completed: 1 });
       captureProgress.completeOperation(operationId);
 
@@ -314,7 +315,7 @@ export default function Endpoints() {
     setBulkSnapshotting(true);
 
     try {
-      await snapshotsApi.capture(currentSpace, targets);
+      await snapshotsApi.captureBySpace(currentSpace!, targets);
       captureProgress.updateProgress(operationId, {
         completed: targets.length,
       });
