@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Settings, RefreshCw, Save, Trash2, Home, Copy, Download, Upload, Edit3, X, Check, AlertTriangle, Plus, Wand2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from '@/components/ui/toast'
-import { parametersApi } from '@/api/parameters/parameters.api'
+import { parametersApi, type ParameterUsage } from '@/api/parameters/parameters.api'
 import { endpointsApi } from '@/api/endpoints/endpoints.api'
+import { PageLayout, PageSection } from '@/components/shared'
 
 interface ParameterWithMetadata {
   name: string
@@ -25,7 +26,6 @@ export default function Parameters() {
   
   const [parameters, setParameters] = useState<ParameterWithMetadata[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddForm, setShowAddForm] = useState(false)
   const [newParamName, setNewParamName] = useState('')
@@ -78,32 +78,6 @@ export default function Parameters() {
     return 'String'
   }
 
-  const saveAllParameters = async () => {
-    setIsSaving(true)
-    try {
-      const paramsObject: Record<string, string> = {}
-      parameters.forEach(p => {
-        paramsObject[p.name] = p.value
-      })
-      
-      // Save all parameters
-      await Promise.all(
-        parameters.map(param => 
-          parametersApi.update(currentSpace, param.name, param.value)
-        )
-      )
-      toast.success('All parameters saved successfully')
-      
-      // Invalidate spaces query to update statistics
-      queryClient.invalidateQueries({ queryKey: ['spaces-management'] })
-    } catch (error) {
-      console.error('Failed to save parameters:', error)
-      toast.error('Failed to save parameters')
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
   const handleEdit = (param: ParameterWithMetadata) => {
     setParameters(prev => prev.map(p => 
       p.name === param.name 
@@ -150,7 +124,7 @@ export default function Parameters() {
     }
     
     try {
-      await parametersApi.delete(currentSpace, paramName)
+      await parametersApi.deleteParameter(currentSpace, paramName)
       setParameters(prev => prev.filter(p => p.name !== paramName))
       toast.success(`Parameter "${paramName}" deleted`)
       
@@ -261,8 +235,12 @@ export default function Parameters() {
           throw new Error('Invalid parameter file format')
         }
         
-        // Save all parameters at once
-        await apiClient.put(`/parameters/${currentSpace}`, data.parameters)
+        // Save all parameters individually
+        await Promise.all(
+          Object.entries(data.parameters as Record<string, string>).map(([name, value]) =>
+            parametersApi.create(currentSpace, name, value)
+          )
+        )
         
         await loadParameters()
         toast.success(`Imported ${Object.keys(data.parameters).length} parameters`)
@@ -305,313 +283,317 @@ export default function Parameters() {
     return 'test-' + paramName.toLowerCase()
   }
 
+  // Create header actions
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleInitializeFromEndpoints}
+        className="gap-2"
+        title="Scan endpoints for {placeholder} parameters"
+      >
+        <Wand2 className="h-4 w-4" />
+        Auto-detect
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleImport}
+        className="gap-2"
+      >
+        <Upload className="h-4 w-4" />
+        Import
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleExport}
+        disabled={parameters.length === 0}
+        className="gap-2"
+      >
+        <Download className="h-4 w-4" />
+        Export
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold tracking-tight dark:text-muted-foreground">Space Parameters</h1>
-          <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded">
-            {currentSpace}
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleInitializeFromEndpoints}
-            className="gap-2"
-            title="Scan endpoints for {placeholder} parameters"
-          >
-            <Wand2 className="h-4 w-4" />
-            Auto-detect
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleImport}
-            className="gap-2"
-          >
-            <Upload className="h-4 w-4" />
-            Import
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            disabled={parameters.length === 0}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
-        </div>
-      </div>
-
-      {/* Description */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <Settings className="h-5 w-5 text-blue-600 mt-0.5" />
-            <div>
-              <p className="text-sm text-gray-600">
-                Manage parameter values for the <strong>{currentSpace}</strong> space. 
-                These values are automatically substituted when endpoints contain parameter placeholders like {'{petId}'} or {'{authToken}'}.
-              </p>
-              <p className="text-sm text-gray-600 mt-2">
-                Parameters are <strong>consistent across all endpoints</strong> in this space, ensuring reliable API testing and meaningful snapshot comparisons.
-              </p>
+    <PageLayout
+      title="Space Parameters"
+      subtitle={currentSpace ? `Managing parameters for ${currentSpace}` : undefined}
+      loading={isLoading}
+      showRefreshButton
+      onRefresh={loadParameters}
+      actions={headerActions}
+    >
+      {/* Description Section */}
+      <PageSection>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <Settings className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Manage parameter values for the <strong>{currentSpace}</strong> space. 
+                  These values are automatically substituted when endpoints contain parameter placeholders like {'{petId}'} or {'{authToken}'}.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Parameters are <strong>consistent across all endpoints</strong> in this space, ensuring reliable API testing and meaningful snapshot comparisons.
+                </p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </PageSection>
 
-      {/* Search and Add */}
-      <div className="flex items-center gap-4">
-        <input
-          type="text"
-          placeholder="Search parameters..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <Button
-          onClick={() => setShowAddForm(true)}
-          className="gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Add Parameter
-        </Button>
-      </div>
+      {/* Search and Add Section */}
+      <PageSection>
+        <div className="flex items-center gap-4">
+          <input
+            type="text"
+            placeholder="Search parameters..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <Button
+            onClick={() => setShowAddForm(true)}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Parameter
+          </Button>
+        </div>
+      </PageSection>
 
       {/* Add Parameter Form */}
       {showAddForm && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="text-lg">Add Parameter</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Parameter Name</label>
-                <div className="flex gap-2 mt-1">
-                  <input
-                    type="text"
-                    value={newParamName}
-                    onChange={(e) => setNewParamName(e.target.value)}
-                    placeholder="e.g., petId, apiKey, userId"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+        <PageSection>
+          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
+            <CardHeader>
+              <CardTitle className="text-lg">Add Parameter</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Parameter Name</label>
+                  <div className="flex gap-2 mt-1">
+                    <input
+                      type="text"
+                      value={newParamName}
+                      onChange={(e) => setNewParamName(e.target.value)}
+                      placeholder="e.g., petId, apiKey, userId"
+                      className="flex-1 px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Parameter Value</label>
-                <div className="flex gap-2 mt-1">
-                  <input
-                    type="text"
-                    value={newParamValue}
-                    onChange={(e) => setNewParamValue(e.target.value)}
-                    placeholder="e.g., 6952, abc123, test-user-id"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                <div>
+                  <label className="text-sm font-medium">Parameter Value</label>
+                  <div className="flex gap-2 mt-1">
+                    <input
+                      type="text"
+                      value={newParamValue}
+                      onChange={(e) => setNewParamValue(e.target.value)}
+                      placeholder="e.g., 6952, abc123, test-user-id"
+                      className="flex-1 px-3 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    {newParamName && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setNewParamValue(getSuggestedValue(newParamName))}
+                        title="Use suggested value"
+                      >
+                        <Wand2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                   {newParamName && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setNewParamValue(getSuggestedValue(newParamName))}
-                      title="Use suggested value"
-                    >
-                      <Wand2 className="h-4 w-4" />
-                    </Button>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Suggested: {getSuggestedValue(newParamName)}
+                    </p>
                   )}
                 </div>
-                {newParamName && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Suggested: {getSuggestedValue(newParamName)}
-                  </p>
-                )}
+                <div className="flex gap-2">
+                  <Button onClick={handleAddParameter} className="gap-2">
+                    <Save className="h-4 w-4" />
+                    Add Parameter
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowAddForm(false)
+                      setNewParamName('')
+                      setNewParamValue('')
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button onClick={handleAddParameter} className="gap-2">
-                  <Save className="h-4 w-4" />
-                  Add Parameter
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowAddForm(false)
-                    setNewParamName('')
-                    setNewParamValue('')
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </PageSection>
       )}
 
-      {/* Parameters List */}
-      {isLoading ? (
-        <Card>
-          <CardContent className="py-12 text-center text-gray-500">
-            Loading parameters...
-          </CardContent>
-        </Card>
-      ) : filteredParameters.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Settings className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">
-              {searchTerm ? 'No parameters match your search.' : 'No parameters defined yet.'}
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              Click "Auto-detect" to scan endpoints for parameters, or add them manually.
-            </p>
-            <Button
-              onClick={handleInitializeFromEndpoints}
-              className="mt-4 gap-2"
-              variant="outline"
-            >
-              <Wand2 className="h-4 w-4" />
-              Auto-detect from Endpoints
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {filteredParameters.map((param) => (
-            <Card key={param.name} className="hover:shadow-md transition-shadow">
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-mono text-lg font-semibold">{param.name}</h3>
-                      <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 px-2 py-1 rounded">
-                        {param.pattern}
-                      </span>
+      {/* Parameters List Section */}
+      <PageSection title="Parameters">
+        {filteredParameters.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                {searchTerm ? 'No parameters match your search.' : 'No parameters defined yet.'}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Click "Auto-detect" to scan endpoints for parameters, or add them manually.
+              </p>
+              <Button
+                onClick={handleInitializeFromEndpoints}
+                className="mt-4 gap-2"
+                variant="outline"
+              >
+                <Wand2 className="h-4 w-4" />
+                Auto-detect from Endpoints
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {filteredParameters.map((param) => (
+              <Card key={param.name} className="hover:shadow-md transition-shadow">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-mono text-lg font-semibold">{param.name}</h3>
+                        <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
+                          {param.pattern}
+                        </span>
+                      </div>
+                      
+                      {param.isEditing ? (
+                        <div className="flex items-center gap-2 mb-3">
+                          <input
+                            type="text"
+                            value={param.editValue}
+                            onChange={(e) => {
+                              setParameters(prev => prev.map(p => 
+                                p.name === param.name 
+                                  ? { ...p, editValue: e.target.value }
+                                  : p
+                              ))
+                            }}
+                            className="flex-1 px-3 py-1 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleSaveEdit(param.name)}
+                            disabled={!param.editValue || param.editValue === param.value}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleCancelEdit(param.name)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3 mb-3">
+                          <code className="bg-muted px-3 py-1 rounded text-sm">
+                            {String(param.value)}
+                          </code>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(String(param.value))
+                                toast.success('Value copied to clipboard')
+                              } catch {
+                                toast.error('Failed to copy value')
+                              }
+                            }}
+                            className="text-muted-foreground hover:text-foreground"
+                            title="Copy value"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </button>
+                        </div>
+                      )}
+                      
+                      {param.usedIn && param.usedIn.length > 0 && (
+                        <div className="text-sm text-muted-foreground">
+                          Used in: {param.usedIn.map((endpoint, index) => (
+                            <span key={endpoint}>
+                              <button
+                                onClick={() => navigate(`/endpoints?space=${currentSpace}&highlight=${encodeURIComponent(endpoint)}`)}
+                                className="text-primary hover:text-primary/80 hover:underline"
+                                title={`Go to ${endpoint} endpoint`}
+                              >
+                                {endpoint}
+                              </button>
+                              {index < param.usedIn.length - 1 && ', '}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     
-                    {param.isEditing ? (
-                      <div className="flex items-center gap-2 mb-3">
-                        <input
-                          type="text"
-                          value={param.editValue}
-                          onChange={(e) => {
-                            setParameters(prev => prev.map(p => 
-                              p.name === param.name 
-                                ? { ...p, editValue: e.target.value }
-                                : p
-                            ))
-                          }}
-                          className="flex-1 px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          autoFocus
-                        />
-                        <Button
-                          size="sm"
-                          onClick={() => handleSaveEdit(param.name)}
-                          disabled={!param.editValue || param.editValue === param.value}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleCancelEdit(param.name)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3 mb-3">
-                        <code className="bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded text-sm">
-                          {String(param.value)}
-                        </code>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(String(param.value))
-                              toast.success('Value copied to clipboard')
-                            } catch {
-                              toast.error('Failed to copy value')
-                            }
-                          }}
-                          className="text-gray-400 hover:text-gray-600"
-                          title="Copy value"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </button>
-                      </div>
-                    )}
-                    
-                    {param.usedIn && param.usedIn.length > 0 && (
-                      <div className="text-sm text-gray-500">
-                        Used in: {param.usedIn.map((endpoint, index) => (
-                          <span key={endpoint}>
-                            <button
-                              onClick={() => navigate(`/endpoints?space=${currentSpace}&highlight=${encodeURIComponent(endpoint)}`)}
-                              className="text-blue-600 hover:text-blue-800 hover:underline"
-                              title={`Go to ${endpoint} endpoint`}
-                            >
-                              {endpoint}
-                            </button>
-                            {index < param.usedIn.length - 1 && ', '}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(param)}
+                        disabled={param.isEditing}
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(param.name)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(param)}
-                      disabled={param.isEditing}
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(param.name)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </PageSection>
 
       {/* Help Section */}
-      <Card className="bg-yellow-50 border-yellow-200">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-            <div className="space-y-2 text-sm text-yellow-800">
-              <p>
-                <strong>Important:</strong> Parameter values must match your API's requirements:
-              </p>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>For <code>petId</code> - Use valid IDs like: 6952, 7432, 9691, 3012, 4603 (Petstore API)</li>
-                <li>For <code>orderId</code> - Use values 1-10 for the Petstore API</li>
-                <li>For <code>authToken</code> - Use a valid authentication token from your auth provider</li>
-                <li>For dates/times - Use the format expected by your API (ISO 8601, Unix timestamp, etc.)</li>
-                <li>For UUIDs - Ensure they follow the correct UUID format if validation is strict</li>
-              </ul>
-              <p className="mt-2">
-                Changes take effect immediately and will be used in all future snapshot captures.
-              </p>
+      <PageSection>
+        <Card className="border-yellow-500/50 bg-yellow-50 dark:bg-yellow-950/20">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+              <div className="space-y-2 text-sm text-yellow-800 dark:text-yellow-200">
+                <p>
+                  <strong>Important:</strong> Parameter values must match your API's requirements:
+                </p>
+                <ul className="list-disc list-inside space-y-1 ml-4">
+                  <li>For <code>petId</code> - Use valid IDs like: 6952, 7432, 9691, 3012, 4603 (Petstore API)</li>
+                  <li>For <code>orderId</code> - Use values 1-10 for the Petstore API</li>
+                  <li>For <code>authToken</code> - Use a valid authentication token from your auth provider</li>
+                  <li>For dates/times - Use the format expected by your API (ISO 8601, Unix timestamp, etc.)</li>
+                  <li>For UUIDs - Ensure they follow the correct UUID format if validation is strict</li>
+                </ul>
+                <p className="mt-2">
+                  Changes take effect immediately and will be used in all future snapshot captures.
+                </p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+          </CardContent>
+        </Card>
+      </PageSection>
+    </PageLayout>
   )
 }

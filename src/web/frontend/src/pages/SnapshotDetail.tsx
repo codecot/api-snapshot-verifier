@@ -4,11 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, Download, Copy, Check, ExternalLink } from 'lucide-react'
 import { format } from 'date-fns'
 import { snapshotsApi } from '@/api/snapshots/snapshots.api'
-import { PageHeader } from '@/design-system/components/PageHeader'
-import { PageLayout } from '@/design-system/components/PageLayout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PageLayout, PageSection, StatCard } from '@/components/shared'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { LoadingState } from '@/components/states/LoadingState'
 import { ErrorState } from '@/components/states/ErrorState'
 import { JsonViewer } from '@/components/ui/json-viewer'
@@ -92,16 +89,15 @@ export default function SnapshotDetail() {
 
   if (isLoading) {
     return (
-      <PageLayout>
-        <PageHeader
-          title="Loading Snapshot..."
-          actions={
-            <Button variant="ghost" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          }
-        />
+      <PageLayout 
+        title="Loading Snapshot..."
+      >
+        <div className="flex justify-end mb-6">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </div>
         <LoadingState message="Loading snapshot details..." />
       </PageLayout>
     )
@@ -109,16 +105,15 @@ export default function SnapshotDetail() {
 
   if (error || !snapshotDetail) {
     return (
-      <PageLayout>
-        <PageHeader
-          title="Snapshot Not Found"
-          actions={
-            <Button variant="ghost" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          }
-        />
+      <PageLayout 
+        title="Snapshot Not Found"
+      >
+        <div className="flex justify-end mb-6">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+        </div>
         <ErrorState 
           error={error || 'Snapshot not found'} 
           onRetry={() => window.location.reload()} 
@@ -128,170 +123,120 @@ export default function SnapshotDetail() {
   }
 
   return (
-    <PageLayout>
-      <PageHeader
-        title={`Snapshot: ${snapshotDetail.endpoint}`}
-        description={`Captured on ${format(new Date(snapshotDetail.timestamp), 'MMM d, yyyy HH:mm:ss')}`}
-        actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleDownload}>
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </Button>
-            <Button variant="ghost" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Snapshots
-            </Button>
-          </div>
-        }
-      />
+    <PageLayout 
+      title={`Snapshot: ${snapshotDetail.endpoint}`}
+      description={`Captured on ${format(new Date(snapshotDetail.timestamp), 'MMM d, yyyy HH:mm:ss')}`}
+    >
+      {/* Action buttons */}
+      <div className="flex justify-end gap-2 mb-6">
+        <Button variant="outline" onClick={handleDownload}>
+          <Download className="h-4 w-4 mr-2" />
+          Download
+        </Button>
+        <Button variant="ghost" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Snapshots
+        </Button>
+      </div>
 
-      {/* Metadata Section */}
+      {/* Metadata Section using StatCards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              {snapshotDetail.status === 'success' ? (
-                <>
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  <span className="font-medium text-green-700">Success</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-5 w-5 text-red-600" />
-                  <span className="font-medium text-red-700">Failed</span>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Status"
+          value={snapshotDetail.status === 'success' ? 'Success' : 'Failed'}
+          icon={snapshotDetail.status === 'success' ? CheckCircle : XCircle}
+          color={snapshotDetail.status === 'success' ? 'text-green-600' : 'text-red-600'}
+        />
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Response Code</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge
-              variant={snapshotDetail.responseStatus && snapshotDetail.responseStatus < 400 ? 'outline' : 'destructive'}
-              className="text-lg px-3 py-1"
-            >
-              {snapshotDetail.responseStatus || 'N/A'}
-            </Badge>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Response Code"
+          value={snapshotDetail.responseStatus?.toString() || 'N/A'}
+          icon={CheckCircle}
+          color={snapshotDetail.responseStatus && snapshotDetail.responseStatus < 400 ? 'text-green-600' : 'text-red-600'}
+        />
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Duration</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              <span className="font-medium">
-                {snapshotDetail.duration ? formatResponseTime(snapshotDetail.duration) : 'N/A'}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Duration"
+          value={snapshotDetail.duration ? formatResponseTime(snapshotDetail.duration) : 'N/A'}
+          icon={Clock}
+        />
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Method</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge variant="outline" className="text-lg px-3 py-1 font-mono">
-              {snapshotDetail.method}
-            </Badge>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Method"
+          value={snapshotDetail.method}
+          icon={ExternalLink}
+        />
       </div>
 
       {/* URL Section */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-sm">Endpoint URL</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 bg-muted p-3 rounded text-sm font-mono break-all">
-              {snapshotDetail.url}
-            </code>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleCopyUrl}
-            >
-              {copied ? (
-                <>
-                  <Check className="h-4 w-4 mr-1" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="h-4 w-4 mr-1" />
-                  Copy
-                </>
-              )}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => window.open(snapshotDetail.url, '_blank')}
-            >
-              <ExternalLink className="h-4 w-4 mr-1" />
-              Open
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <PageSection title="Endpoint URL">
+        <div className="flex items-center gap-2">
+          <code className="flex-1 bg-muted p-3 rounded text-sm font-mono break-all">
+            {snapshotDetail.url}
+          </code>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCopyUrl}
+          >
+            {copied ? (
+              <>
+                <Check className="h-4 w-4 mr-1" />
+                Copied
+              </>
+            ) : (
+              <>
+                <Copy className="h-4 w-4 mr-1" />
+                Copy
+              </>
+            )}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.open(snapshotDetail.url, '_blank')}
+          >
+            <ExternalLink className="h-4 w-4 mr-1" />
+            Open
+          </Button>
+        </div>
+      </PageSection>
 
       {/* Error Section (if any) */}
       {snapshotDetail.error && (
-        <Card className="mb-6 border-red-200 dark:border-red-800">
-          <CardHeader>
-            <CardTitle className="text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
+        <PageSection title="Error Details">
+          <div className="bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 p-4 rounded border border-red-200 dark:border-red-800">
+            <div className="flex items-center gap-2 mb-2">
               <AlertCircle className="h-4 w-4" />
-              Error Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400 p-4 rounded">
-              <pre className="whitespace-pre-wrap text-sm">{snapshotDetail.error}</pre>
+              <span className="font-medium">Error Details</span>
             </div>
-          </CardContent>
-        </Card>
+            <pre className="whitespace-pre-wrap text-sm">{snapshotDetail.error}</pre>
+          </div>
+        </PageSection>
       )}
 
       {/* Response Data Section */}
       {snapshotDetail.response && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Response Data</CardTitle>
-              <div className="flex items-center gap-4">
-                <input
-                  type="text"
-                  placeholder="Search in response..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="px-3 py-1 text-sm border rounded-md bg-background"
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <JsonViewer
-              data={snapshotDetail.response}
-              maxHeight="calc(100vh - 600px)"
-              searchTerm={searchTerm}
-              defaultExpanded={false}
-              className="min-h-[400px]"
+        <PageSection 
+          title="Response Data"
+          headerActions={
+            <input
+              type="text"
+              placeholder="Search in response..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3 py-1 text-sm border rounded-md bg-background"
             />
-          </CardContent>
-        </Card>
+          }
+        >
+          <JsonViewer
+            data={snapshotDetail.response}
+            maxHeight="calc(100vh - 600px)"
+            searchTerm={searchTerm}
+            defaultExpanded={false}
+            className="min-h-[400px]"
+          />
+        </PageSection>
       )}
 
       {/* Additional Info */}

@@ -5,9 +5,8 @@ import { Calendar, Clock, CheckCircle, XCircle, Eye, Trash2, RefreshCw, Trending
 import { format, formatDistanceToNow } from 'date-fns'
 import { useSpace } from '@/contexts/SpaceContext'
 import { snapshotsApi } from '@/api/snapshots/snapshots.api'
-import { PageHeader } from '@/design-system/components/PageHeader'
-import { PageLayout } from '@/design-system/components/PageLayout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { PageLayout, PageSection, StatCard } from '@/components/shared'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -51,8 +50,8 @@ export default function Snapshots() {
     const successful = snapshots.filter(s => s.status === 'success').length
     const failed = snapshots.filter(s => s.status === 'error').length
     const avgResponseTime = snapshots
-      .filter(s => s.status === 'success' && s.duration)
-      .reduce((acc, s) => acc + (s.duration || 0), 0) / (successful || 1)
+      .filter(s => s.status === 'success' && (s as any).duration)
+      .reduce((acc, s) => acc + ((s as any).duration || 0), 0) / (successful || 1)
 
     const endpoints = [...new Set(snapshots.map(s => s.endpoint))]
     const recentSnapshots = snapshots.slice(0, 5)
@@ -88,11 +87,10 @@ export default function Snapshots() {
 
   if (isLoading) {
     return (
-      <PageLayout>
-        <PageHeader
-          title="Snapshots"
-          description="View and analyze API snapshot history"
-        />
+      <PageLayout 
+        title="Snapshots"
+        description="View and analyze API snapshot history"
+      >
         <div className="grid gap-4 md:grid-cols-4">
           {[1, 2, 3, 4].map(i => (
             <Card key={i}>
@@ -112,90 +110,63 @@ export default function Snapshots() {
 
   if (error) {
     return (
-      <PageLayout>
-        <PageHeader
-          title="Snapshots"
-          description="View and analyze API snapshot history"
-        />
+      <PageLayout 
+        title="Snapshots"
+        description="View and analyze API snapshot history"
+      >
         <ErrorState error={error} onRetry={() => queryClient.invalidateQueries({ queryKey: ['snapshots'] })} />
       </PageLayout>
     )
   }
 
   return (
-    <PageLayout>
-      <PageHeader
-        title="Snapshots"
-        description="View and analyze API snapshot history"
-        actions={
-          <Button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['snapshots'] })}
-            variant="outline"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        }
-      />
+    <PageLayout 
+      title="Snapshots"
+      description="View and analyze API snapshot history"
+    >
+      {/* Refresh Button */}
+      <div className="flex justify-end mb-6">
+        <Button
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['snapshots'] })}
+          variant="outline"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
+      </div>
 
       {/* Statistics Cards */}
       <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Snapshots</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">
-              Across {stats.endpoints.length} endpoints
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Total Snapshots"
+          value={stats.total}
+          icon={BarChart3}
+          subtitle={`Across ${stats.endpoints.length} endpoints`}
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.successRate.toFixed(1)}%</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.successful} successful, {stats.failed} failed
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Success Rate"
+          value={`${stats.successRate.toFixed(1)}%`}
+          icon={TrendingUp}
+          subtitle={`${stats.successful} successful, ${stats.failed} failed`}
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Response Time</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatResponseTime(stats.avgResponseTime)}</div>
-            <p className="text-xs text-muted-foreground">
-              For successful requests
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Avg Response Time"
+          value={formatResponseTime(stats.avgResponseTime)}
+          icon={Activity}
+          subtitle="For successful requests"
+        />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Latest Snapshot</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.recentSnapshots[0] 
-                ? formatDistanceToNow(new Date(stats.recentSnapshots[0].timestamp), { addSuffix: true })
-                : 'None'
-              }
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.recentSnapshots[0]?.endpoint || 'No snapshots yet'}
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Latest Snapshot"
+          value={stats.recentSnapshots[0] 
+            ? formatDistanceToNow(new Date(stats.recentSnapshots[0].timestamp), { addSuffix: true })
+            : 'None'
+          }
+          icon={Clock}
+          subtitle={stats.recentSnapshots[0]?.endpoint || 'No snapshots yet'}
+        />
       </div>
 
       {/* Filters and View Options */}
@@ -262,7 +233,7 @@ export default function Snapshots() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="font-mono text-xs">
-                            {snapshot.method}
+                            {(snapshot as any).method || 'GET'}
                           </Badge>
                           <span className="font-medium">{snapshot.endpoint}</span>
                           {snapshot.status === 'success' ? (
@@ -271,7 +242,7 @@ export default function Snapshots() {
                             <XCircle className="h-4 w-4 text-red-600" />
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground">{snapshot.url}</p>
+                        <p className="text-sm text-muted-foreground">{(snapshot as any).url || snapshot.endpoint}</p>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button
@@ -305,18 +276,18 @@ export default function Snapshots() {
                         <Calendar className="h-3 w-3" />
                         {format(new Date(snapshot.timestamp), 'MMM d, yyyy HH:mm:ss')}
                       </span>
-                      {snapshot.duration && (
+                      {(snapshot as any).duration && (
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {formatResponseTime(snapshot.duration)}
+                          {formatResponseTime((snapshot as any).duration)}
                         </span>
                       )}
-                      {snapshot.responseStatus && (
+                      {(snapshot as any).responseStatus && (
                         <Badge
-                          variant={snapshot.responseStatus < 400 ? 'outline' : 'destructive'}
+                          variant={(snapshot as any).responseStatus < 400 ? 'outline' : 'destructive'}
                           className="text-xs"
                         >
-                          {snapshot.responseStatus}
+                          {(snapshot as any).responseStatus}
                         </Badge>
                       )}
                     </div>
@@ -348,17 +319,17 @@ export default function Snapshots() {
                                 <XCircle className="h-4 w-4 text-red-600" />
                               )}
                               <span>{format(new Date(snapshot.timestamp), 'HH:mm:ss')}</span>
-                              {snapshot.duration && (
+                              {(snapshot as any).duration && (
                                 <span className="text-muted-foreground">
-                                  {formatResponseTime(snapshot.duration)}
+                                  {formatResponseTime((snapshot as any).duration)}
                                 </span>
                               )}
-                              {snapshot.responseStatus && (
+                              {(snapshot as any).responseStatus && (
                                 <Badge
-                                  variant={snapshot.responseStatus < 400 ? 'outline' : 'destructive'}
+                                  variant={(snapshot as any).responseStatus < 400 ? 'outline' : 'destructive'}
                                   className="text-xs"
                                 >
-                                  {snapshot.responseStatus}
+                                  {(snapshot as any).responseStatus}
                                 </Badge>
                               )}
                             </div>

@@ -31,6 +31,7 @@ import {
   BulkActions,
   DeleteConfirmDialog,
   EmptyState,
+  PageLayout,
 } from "@/components/shared";
 import { ThinStatusBar } from "@/components/StatusBar";
 import OpenAPIImport from "@/components/OpenAPIImport";
@@ -188,7 +189,7 @@ export default function Endpoints() {
     }: {
       name: string;
       deleteSnapshots?: boolean;
-    }) => endpointsApi.delete(currentSpace, name, deleteSnapshots),
+    }) => endpointsApi.deleteEndpoint(currentSpace, name, deleteSnapshots),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["endpoints", currentSpace] });
       const snapshotMessage = variables.deleteSnapshots
@@ -212,7 +213,11 @@ export default function Endpoints() {
       const results = [];
       for (const name of endpointNames) {
         try {
-          await endpointsApi.delete(currentSpace, name, deleteSnapshots);
+          await endpointsApi.deleteEndpoint(
+            currentSpace,
+            name,
+            deleteSnapshots
+          );
           results.push({ name, success: true });
         } catch (error) {
           results.push({ name, success: false, error });
@@ -387,24 +392,24 @@ export default function Endpoints() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight dark:text-muted-foreground">Endpoints</h1>
-          <p className="text-muted-foreground">Loading endpoints...</p>
-        </div>
-      </div>
+      <PageLayout title="Endpoints" description="Loading endpoints...">
+        <div>Loading...</div>
+      </PageLayout>
     );
   }
 
   return (
-    <>
+    <PageLayout
+      title="Endpoints"
+      description={`Manage API endpoints for ${currentSpace}`}
+    >
       <ThinStatusBar
         isActive={isCapturing}
         status={isCapturing ? "loading" : "idle"}
       />
 
       <div className="space-y-6">
-        {/* Header */}
+        {/* Custom Header with Navigation */}
         <div className="flex items-center justify-between gap-2 lg:gap-4">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <button
@@ -415,7 +420,7 @@ export default function Endpoints() {
               <Home className="h-4 w-4" />
             </button>
             <span className="text-lg text-muted-foreground shrink-0">/</span>
-            <h1 className="text-xl lg:text-2xl font-bold tracking-tight flex items-center gap-1 lg:gap-2 min-w-0 dark:text-muted-foreground">
+            <h2 className="text-xl lg:text-2xl font-bold tracking-tight flex items-center gap-1 lg:gap-2 min-w-0 dark:text-muted-foreground">
               <span className="truncate">Endpoints</span>
               {isCapturing && (
                 <Loader2 className="h-4 w-4 lg:h-5 lg:w-5 animate-spin text-blue-600 shrink-0" />
@@ -437,7 +442,7 @@ export default function Endpoints() {
                     : "Offline - no real-time updates"
                 }`}
               />
-            </h1>
+            </h2>
             <div className="flex items-center gap-2 shrink-0 hidden sm:block">
               <div
                 className="text-muted-foreground text-xs lg:text-sm px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded cursor-help flex items-center gap-2"
@@ -796,6 +801,6 @@ export default function Endpoints() {
           />
         )}
       </div>
-    </>
+    </PageLayout>
   );
 }

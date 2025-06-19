@@ -8,6 +8,7 @@ import { spacesApi } from '@/api/spaces/spaces.api';
 import { toast } from '@/components/ui/toast';
 import { useSpace } from '@/contexts/SpaceContext';
 import { parametersApi } from '@/api/parameters/parameters.api';
+import { PageLayout, EmptyState } from '@/components/shared';
 
 interface SpaceStats {
   endpoints: number;
@@ -212,7 +213,7 @@ export default function SpaceManagement() {
       
       for (const spaceName of spaceNames) {
         try {
-          await spacesApi.delete(spaceName);
+          await spacesApi.deleteSpace(spaceName);
           results.deleted.push(spaceName);
         } catch (error) {
           console.error(`Failed to delete space ${spaceName}:`, error);
@@ -259,7 +260,7 @@ export default function SpaceManagement() {
   // Delete single space mutation
   const deleteSingleMutation = useMutation({
     mutationFn: async (space: Space) => {
-      await spacesApi.delete(space.name);
+      await spacesApi.deleteSpace(space.name);
       return space;
     },
     onSuccess: (space) => {
@@ -342,22 +343,24 @@ export default function SpaceManagement() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Loading spaces...</div>
-      </div>
+      <PageLayout 
+        title="Space Management"
+        description="Manage your API snapshot spaces and their configurations"
+      >
+        <div className="flex items-center justify-center h-full">
+          <div className="text-muted-foreground">Loading spaces...</div>
+        </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <PageLayout 
+      title="Space Management"
+      description="Manage your API snapshot spaces and their configurations"
+    >
       <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold mb-2 dark:text-muted-foreground">Space Management</h1>
-            <p className="text-muted-foreground">
-              Manage your API snapshot spaces and their configurations
-            </p>
-          </div>
+        <div className="flex items-center justify-end">
           {/* Three Dots Menu */}
           {spaces.length > 0 && (
             <div className="relative">
@@ -481,6 +484,7 @@ export default function SpaceManagement() {
                     checked={selectedSpaces.has(space.id)}
                     onChange={() => handleSelectSpace(space.id)}
                     className="mt-1 w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary"
+                    aria-label={`Select space ${space.name}`}
                   />
                 )}
                 <div className="flex-1">
@@ -659,11 +663,12 @@ export default function SpaceManagement() {
       </div>
 
       {spaces.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <Database className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>No spaces found</p>
-        </div>
+        <EmptyState
+          icon={Database}
+          title="No spaces found"
+          description="Create your first space to get started"
+        />
       )}
-    </div>
+    </PageLayout>
   );
 }
