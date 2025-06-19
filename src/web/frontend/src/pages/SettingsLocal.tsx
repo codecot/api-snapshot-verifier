@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button'
 import { 
   Server, 
   Database, 
-  Activity, 
   CheckCircle, 
   AlertCircle, 
   Plus, 
@@ -19,6 +18,7 @@ import {
 import { useLocalServers } from '@/hooks/useLocalServers'
 import { useBackendConfig } from '@/hooks/useBackendConfig'
 import { toast } from '@/components/ui/toast'
+import { PageLayout, PageSection, StatCard } from '@/components/shared'
 
 // Server Info Display Component
 function ServerInfoCard({ serverInfo }: { serverInfo: any }) {
@@ -193,7 +193,8 @@ export default function SettingsLocal() {
         url: newServerUrl.replace(/\/+$/, ''),
         name,
         serverInfo: testResult.serverInfo,
-        lastConnected: new Date().toISOString()
+        lastConnected: new Date().toISOString(),
+        isDefault: false
       })
       
       setSelectedServerId(newServer.id)
@@ -279,265 +280,287 @@ export default function SettingsLocal() {
   const selectedServer = servers.find(s => s.id === selectedServerId)
 
   return (
-    <div className="flex h-full">
-      {/* Left Sidebar - Server List */}
-      <div className="w-80 border-r bg-muted/30 p-4 space-y-2">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 dark:text-muted-foreground">
-          <Server className="h-5 w-5" />
-          Backend Servers
-        </h2>
-        
-        {loadingServers ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/50" />
-          </div>
-        ) : (
-          <>
-            {servers.map(server => (
-              <button
-                key={server.id}
-                onClick={() => setSelectedServerId(server.id)}
-                className={`w-full text-left p-3 rounded-lg transition-colors ${
-                  selectedServerId === server.id
-                    ? 'bg-card border-2 border-blue-500 shadow-sm'
-                    : 'bg-card border border-border hover:border-muted-foreground/50'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium dark:text-muted-foreground">{server.name}</span>
-                      {server.isDefault && (
-                        <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
-                      )}
-                      {server.url === backendUrl && (
-                        <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 px-2 py-0.5 rounded">
-                          Active
-                        </span>
+    <PageLayout 
+      title="Local Settings"
+      description="Manage your local backend server connections and preferences"
+    >
+      <div className="flex h-full min-h-[calc(100vh-200px)]">
+        {/* Left Sidebar - Server List */}
+        <div className="w-80 border-r bg-muted/30 p-4 space-y-2">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 dark:text-muted-foreground">
+            <Server className="h-5 w-5" />
+            Backend Servers
+          </h2>
+          
+          {loadingServers ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/50" />
+            </div>
+          ) : (
+            <>
+              {servers.map(server => (
+                <button
+                  key={server.id}
+                  onClick={() => setSelectedServerId(server.id)}
+                  className={`w-full text-left p-3 rounded-lg transition-colors ${
+                    selectedServerId === server.id
+                      ? 'bg-card border-2 border-blue-500 shadow-sm'
+                      : 'bg-card border border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium dark:text-muted-foreground">{server.name}</span>
+                        {server.isDefault && (
+                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                        )}
+                        {server.url === backendUrl && (
+                          <span className="text-xs bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 px-2 py-0.5 rounded">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground/70 mt-1">{server.url}</div>
+                      {server.serverInfo && (
+                        <div className="text-xs text-muted-foreground/70 mt-1">
+                          v{server.serverInfo.server.version} • {server.serverInfo.database.statistics.spaces} spaces
+                        </div>
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground/70 mt-1">{server.url}</div>
-                    {server.serverInfo && (
-                      <div className="text-xs text-muted-foreground/70 mt-1">
-                        v{server.serverInfo.server.version} • {server.serverInfo.database.statistics.spaces} spaces
+                    {server.serverInfo?.websocket.available && (
+                      <div className="ml-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          server.serverInfo.websocket.enabled ? 'bg-green-500' : 'bg-muted-foreground/30'
+                        }`} />
                       </div>
                     )}
                   </div>
-                  {server.serverInfo?.websocket.available && (
-                    <div className="ml-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        server.serverInfo.websocket.enabled ? 'bg-green-500' : 'bg-muted-foreground/30'
-                      }`} />
-                    </div>
-                  )}
-                </div>
-              </button>
-            ))}
-            
-            {/* Add Server Button */}
-            {!isAddingServer ? (
-              <button
-                onClick={() => setIsAddingServer(true)}
-                className="w-full p-3 border-2 border-dashed border-muted-foreground/30 rounded-lg text-muted-foreground hover:border-muted-foreground/50 hover:text-muted-foreground transition-colors flex items-center justify-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add Server
-              </button>
-            ) : (
-              <Card className="p-3 space-y-3">
-                <input
-                  type="text"
-                  placeholder="Server URL"
-                  value={newServerUrl}
-                  onChange={(e) => setNewServerUrl(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded text-sm bg-background"
-                  autoFocus
-                />
-                <input
-                  type="text"
-                  placeholder="Name (optional)"
-                  value={newServerName}
-                  onChange={(e) => setNewServerName(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded text-sm bg-background"
-                />
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleAddServer}
-                    disabled={isTestingConnection}
-                    className="flex-1"
-                  >
-                    {isTestingConnection ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      'Add'
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setIsAddingServer(false)
-                      setNewServerUrl('')
-                      setNewServerName('')
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </Card>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Right Content - Server Details */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        {selectedServer ? (
-          <div className="max-w-4xl space-y-6">
-            {/* Server Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold flex items-center gap-2 dark:text-muted-foreground">
-                  {selectedServer.name}
-                  {selectedServer.isDefault && (
-                    <span className="text-sm font-normal bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400 px-2 py-1 rounded">
-                      Default
-                    </span>
-                  )}
-                  {selectedServer.url === backendUrl && (
-                    <span className="text-sm font-normal bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-400 px-2 py-1 rounded">
-                      Active
-                    </span>
-                  )}
-                </h1>
-                <p className="text-muted-foreground mt-1">{selectedServer.url}</p>
-              </div>
+                </button>
+              ))}
               
-              <div className="flex gap-2">
-                {!selectedServer.isDefault && (
-                  <Button
-                    onClick={() => handleSetDefault(selectedServer.id)}
-                    variant="outline"
-                    size="sm"
-                    className="dark:text-muted-foreground dark:border-muted-foreground/50 transition-all duration-200 hover:bg-white/50 dark:hover:bg-white/5 hover:backdrop-blur-sm"
-                  >
-                    <Star className="h-4 w-4 mr-1" />
-                    Set as Default
-                  </Button>
-                )}
-                <Button
-                  onClick={() => handleTestConnection(selectedServer.id)}
-                  variant="outline"
-                  size="sm"
-                  disabled={testingServerId === selectedServer.id}
-                  className="dark:text-muted-foreground dark:border-muted-foreground/50 transition-all duration-200 hover:bg-white/50 dark:hover:bg-white/5 hover:backdrop-blur-sm"
+              {/* Add Server Button */}
+              {!isAddingServer ? (
+                <button
+                  onClick={() => setIsAddingServer(true)}
+                  className="w-full p-3 border-2 border-dashed border-muted-foreground/30 rounded-lg text-muted-foreground hover:border-muted-foreground/50 hover:text-muted-foreground transition-colors flex items-center justify-center gap-2"
                 >
-                  {testingServerId === selectedServer.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4" />
-                  )}
-                  Test
-                </Button>
-                {servers.length > 1 && (
-                  <Button
-                    onClick={() => handleDeleteServer(selectedServer.id)}
-                    variant="outline"
-                    size="sm"
-                    className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 dark:border-muted-foreground/50 transition-all duration-200 hover:bg-white/50 dark:hover:bg-white/5 hover:backdrop-blur-sm"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Server Info */}
-            {selectedServer.serverInfo ? (
-              <Card className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold flex items-center gap-2 dark:text-muted-foreground">
-                    <Database className="h-5 w-5" />
-                    Server Information
-                  </h3>
-                  {selectedServer.lastConnected && (
-                    <span className="text-xs text-muted-foreground/70">
-                      Last updated: {new Date(selectedServer.lastConnected).toLocaleString()}
-                    </span>
-                  )}
-                </div>
-                <ServerInfoCard serverInfo={selectedServer.serverInfo} />
-              </Card>
-            ) : testingServerId === selectedServer.id ? (
-              <Card className="p-8">
-                <div className="text-center text-muted-foreground">
-                  <Loader2 className="h-12 w-12 mx-auto mb-2 text-muted-foreground/50 animate-spin" />
-                  <p>Fetching server information...</p>
-                </div>
-              </Card>
-            ) : (
-              <Card className="p-8">
-                <div className="text-center text-muted-foreground">
-                  <AlertCircle className="h-12 w-12 mx-auto mb-2 text-muted-foreground/50" />
-                  <p>No server information available</p>
-                  <Button
-                    onClick={() => handleTestConnection(selectedServer.id)}
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                  >
-                    Fetch Server Info
-                  </Button>
-                </div>
-              </Card>
-            )}
-
-            {/* General Settings */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 dark:text-muted-foreground">
-                <SettingsIcon className="h-5 w-5" />
-                General Settings
-              </h3>
-              
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="font-medium dark:text-muted-foreground">Real-time Updates</label>
-                    <p className="text-sm text-muted-foreground/70">Use WebSocket for instant updates when available</p>
-                  </div>
+                  <Plus className="h-4 w-4" />
+                  Add Server
+                </button>
+              ) : (
+                <Card className="p-3 space-y-3">
                   <input
-                    type="checkbox"
-                    checked={useWebSocket}
-                    onChange={(e) => handleWebSocketToggle(e.target.checked)}
-                    className="h-4 w-4"
+                    type="text"
+                    placeholder="Server URL"
+                    value={newServerUrl}
+                    onChange={(e) => setNewServerUrl(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded text-sm bg-background"
+                    autoFocus
+                  />
+                  <input
+                    type="text"
+                    placeholder="Name (optional)"
+                    value={newServerName}
+                    onChange={(e) => setNewServerName(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded text-sm bg-background"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleAddServer}
+                      disabled={isTestingConnection}
+                      className="flex-1"
+                    >
+                      {isTestingConnection ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        'Add'
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setIsAddingServer(false)
+                        setNewServerUrl('')
+                        setNewServerName('')
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </Card>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Right Content - Server Details */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          {selectedServer ? (
+            <div className="space-y-6">
+              {/* Server Header */}
+              <PageSection
+                title={selectedServer.name}
+                description={selectedServer.url}
+                headerActions={
+                  <div className="flex items-center gap-2">
+                    {selectedServer.isDefault && (
+                      <span className="text-sm font-normal bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400 px-2 py-1 rounded">
+                        Default
+                      </span>
+                    )}
+                    {selectedServer.url === backendUrl && (
+                      <span className="text-sm font-normal bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-400 px-2 py-1 rounded">
+                        Active
+                      </span>
+                    )}
+                    <div className="flex gap-2">
+                      {!selectedServer.isDefault && (
+                        <Button
+                          onClick={() => handleSetDefault(selectedServer.id)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Star className="h-4 w-4 mr-1" />
+                          Set as Default
+                        </Button>
+                      )}
+                      <Button
+                        onClick={() => handleTestConnection(selectedServer.id)}
+                        variant="outline"
+                        size="sm"
+                        disabled={testingServerId === selectedServer.id}
+                      >
+                        {testingServerId === selectedServer.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4" />
+                        )}
+                        Test
+                      </Button>
+                      {servers.length > 1 && (
+                        <Button
+                          onClick={() => handleDeleteServer(selectedServer.id)}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                }
+              >
+                <div></div>
+              </PageSection>
+
+              {/* Server Statistics */}
+              {selectedServer.serverInfo && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <StatCard
+                    title="Spaces"
+                    value={selectedServer.serverInfo.database.statistics.spaces}
+                    icon={Database}
+                  />
+                  <StatCard
+                    title="Endpoints"
+                    value={selectedServer.serverInfo.database.statistics.endpoints}
+                    icon={Server}
+                  />
+                  <StatCard
+                    title="Parameters"
+                    value={selectedServer.serverInfo.database.statistics.parameters}
+                    icon={SettingsIcon}
                   />
                 </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="font-medium dark:text-muted-foreground">Theme</label>
-                    <p className="text-sm text-muted-foreground/70">Choose your preferred theme</p>
+              )}
+
+              {/* Server Info */}
+              {selectedServer.serverInfo ? (
+                <PageSection 
+                  title="Server Information"
+                  headerActions={
+                    selectedServer.lastConnected && (
+                      <span className="text-xs text-muted-foreground">
+                        Last updated: {new Date(selectedServer.lastConnected).toLocaleString()}
+                      </span>
+                    )
+                  }
+                >
+                  <ServerInfoCard serverInfo={selectedServer.serverInfo} />
+                </PageSection>
+              ) : testingServerId === selectedServer.id ? (
+                <PageSection title="Server Information">
+                  <div className="text-center text-muted-foreground py-8">
+                    <Loader2 className="h-12 w-12 mx-auto mb-2 text-muted-foreground/50 animate-spin" />
+                    <p>Fetching server information...</p>
                   </div>
-                  <select className="px-3 py-1 border border-border rounded bg-background">
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                    <option value="system">System</option>
-                  </select>
+                </PageSection>
+              ) : (
+                <PageSection title="Server Information">
+                  <div className="text-center text-muted-foreground py-8">
+                    <AlertCircle className="h-12 w-12 mx-auto mb-2 text-muted-foreground/50" />
+                    <p>No server information available</p>
+                    <Button
+                      onClick={() => handleTestConnection(selectedServer.id)}
+                      variant="outline"
+                      size="sm"
+                      className="mt-2"
+                    >
+                      Fetch Server Info
+                    </Button>
+                  </div>
+                </PageSection>
+              )}
+
+              {/* General Settings */}
+              <PageSection title="General Settings">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="font-medium">Real-time Updates</label>
+                      <p className="text-sm text-muted-foreground">Use WebSocket for instant updates when available</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={useWebSocket}
+                      onChange={(e) => handleWebSocketToggle(e.target.checked)}
+                      className="h-4 w-4"
+                      aria-label="Enable real-time updates"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="font-medium">Theme</label>
+                      <p className="text-sm text-muted-foreground">Choose your preferred theme</p>
+                    </div>
+                    <select 
+                      className="px-3 py-1 border border-border rounded bg-background"
+                      aria-label="Select theme"
+                    >
+                      <option value="light">Light</option>
+                      <option value="dark">Dark</option>
+                      <option value="system">System</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            {loadingServers ? (
-              <Loader2 className="h-8 w-8 animate-spin" />
-            ) : (
-              'Select a server from the list'
-            )}
-          </div>
-        )}
+              </PageSection>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              {loadingServers ? (
+                <Loader2 className="h-8 w-8 animate-spin" />
+              ) : (
+                'Select a server from the list'
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </PageLayout>
   )
 }
