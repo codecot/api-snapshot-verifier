@@ -190,7 +190,7 @@ export class DiffEngine {
 
   private determinePrimitiveSeverity(path: string, oldValue: any, newValue: any): 'breaking' | 'non-breaking' | 'informational' {
     // ID changes are usually breaking
-    if (path.toLowerCase().includes('id')) {
+    if (this.isIdField(path)) {
       return 'breaking';
     }
 
@@ -200,6 +200,16 @@ export class DiffEngine {
     }
 
     return 'non-breaking';
+  }
+
+  /**
+   * True when the last key of the path names an identifier: "id", "ids",
+   * "userId", "user_id", "USER_ID". Keys that only contain the letters
+   * "id" (width, provider, videos) are not identifiers.
+   */
+  private isIdField(path: string): boolean {
+    const key = path.replace(/(\[\d+\])+$/, '').split(/[.[\]]/).filter(Boolean).pop() ?? '';
+    return /^ids?$/i.test(key) || /_ids?$/i.test(key) || /[a-z0-9]Ids?$/.test(key);
   }
 
   private applyRules(differences: SnapshotDiff[]): SnapshotDiff[] {
