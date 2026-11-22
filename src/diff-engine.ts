@@ -69,6 +69,17 @@ export class DiffEngine {
       return differences;
     }
 
+    if (Array.isArray(oldData) !== Array.isArray(newData)) {
+      differences.push({
+        path: basePath,
+        type: 'changed',
+        oldValue: oldData,
+        newValue: newData,
+        severity: 'breaking'
+      });
+      return differences;
+    }
+
     if (Array.isArray(oldData) && Array.isArray(newData)) {
       return this.compareArrays(oldData, newData, basePath);
     }
@@ -179,7 +190,7 @@ export class DiffEngine {
 
   private determinePrimitiveSeverity(path: string, oldValue: any, newValue: any): 'breaking' | 'non-breaking' | 'informational' {
     // ID changes are usually breaking
-    if (path.toLowerCase().includes('id')) {
+    if (this.isIdField(path)) {
       return 'breaking';
     }
 
@@ -191,9 +202,19 @@ export class DiffEngine {
     return 'non-breaking';
   }
 
+  /**
+   * True when the last key of the path names an identifier: "id", "ids",
+   * "userId", "user_id", "USER_ID". Keys that only contain the letters
+   * "id" (width, provider, videos) are not identifiers.
+   */
+  private isIdField(path: string): boolean {
+    const key = path.replace(/(\[\d+\])+$/, '').split(/[.[\]]/).filter(Boolean).pop() ?? '';
+    return /^ids?$/i.test(key) || /_ids?$/i.test(key) || /[a-z0-9]Ids?$/.test(key);
+  }
+
   private applyRules(differences: SnapshotDiff[]): SnapshotDiff[] {
     return differences.filter(diff => {
-      const rule = this.rules.find(r => diff.path.startsWith(r.path));
+      const rule = this.rules.find(r => this.ruleMatches(r.path, diff.path));
       
       if (rule) {
         if (rule.ignore) {
@@ -206,6 +227,27 @@ export class DiffEngine {
       
       return true;
     });
+  }
+
+  /**
+   * A rule path matches a difference path when its segments are a prefix of
+   * the difference path's segments. "*" matches any single segment, and an
+   * array index counts as a segment: "response.data.*.id" matches
+   * "response.data[3].id" and "response.data.users.id".
+   */
+  private ruleMatches(rulePath: string, diffPath: string): boolean {
+    const ruleSegments = this.pathSegments(rulePath);
+    const diffSegments = this.pathSegments(diffPath);
+
+    if (ruleSegments.length > diffSegments.length) {
+      return false;
+    }
+
+    return ruleSegments.every((segment, i) => segment === '*' || segment === diffSegments[i]);
+  }
+
+  private pathSegments(path: string): string[] {
+    return path.split(/[.[\]]/).filter(segment => segment.length > 0);
   }
 
   private compareSchemaValidation(baseline: ApiSnapshot, current: ApiSnapshot): SnapshotDiff[] {

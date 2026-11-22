@@ -134,7 +134,7 @@ function convertRequest(
 
   // Create endpoint name
   const name = folderPrefix ? `${folderPrefix}/${item.name}` : item.name;
-  const safeName = name.replace(/[^a-zA-Z0-9-_\/]/g, '-').toLowerCase();
+  const safeName = name.replace(/[^a-zA-Z0-9-_/]/g, '-').toLowerCase();
 
   // Convert headers
   const headers: Record<string, string> = {};

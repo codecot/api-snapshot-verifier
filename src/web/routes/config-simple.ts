@@ -119,7 +119,7 @@ function createExampleObject(schema: any): any {
   }
   
   switch (schema.type) {
-    case 'object':
+    case 'object': {
       const obj: any = {};
       if (schema.properties) {
         for (const [key, propSchema] of Object.entries(schema.properties)) {
@@ -127,6 +127,7 @@ function createExampleObject(schema: any): any {
         }
       }
       return obj;
+    }
       
     case 'array':
       if (schema.items) {
@@ -931,7 +932,9 @@ async function configRoutes(fastify: FastifyInstance) {
           if (fs.existsSync(tempFile)) {
             fs.unlinkSync(tempFile);
           }
-        } catch {}
+        } catch {
+          // Ignore cleanup errors; the original error is rethrown below.
+        }
         throw fsError;
       }
 

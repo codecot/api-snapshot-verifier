@@ -143,7 +143,8 @@ program
       
       if (options.format === 'json') {
         console.log(JSON.stringify(comparisons, null, 2));
-        return;
+        const breakingInJson = comparisons.some(c => c && c.differences.some(d => d.severity === 'breaking'));
+        process.exit(breakingInJson ? 1 : 0);
       }
       
       let hasBreakingChanges = false;
@@ -561,7 +562,7 @@ program
       daysAgo.setDate(daysAgo.getDate() - parseInt(options.days));
       
       // Filter changes
-      let filteredChanges = changeLog.filter((entry: any) => {
+      const filteredChanges = changeLog.filter((entry: any) => {
         const entryDate = new Date(entry.timestamp);
         const matchesDate = entryDate >= daysAgo;
         const matchesEndpoint = !options.endpoint || entry.endpoint === options.endpoint;

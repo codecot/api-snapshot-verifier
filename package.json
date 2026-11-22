@@ -18,8 +18,8 @@
     "web": "concurrently \"PORT=3301 CORS_ORIGIN=http://localhost:3300 npm run dev:server\" \"cd src/web/frontend && npm run dev -- --port 3300\"",
     "web:dev": "npm run web",
     "start:web": "npm run web",
-    "test": "vitest",
-    "lint": "eslint src --ext .ts",
+    "test": "vitest run",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "migrate:db": "node dist/scripts/migrate-to-database.js",
     "migrate:db:dry": "node dist/scripts/migrate-to-database.js --dry-run",
@@ -80,15 +80,14 @@
   "devDependencies": {
     "@types/diff": "^5.0.0",
     "@types/fs-extra": "^11.0.0",
-    "@types/node": "^20.8.0",
+    "@types/node": "^24.19.2",
     "@types/yaml": "^1.9.6",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "concurrently": "^9.1.2",
     "eslint": "^9.0.0",
-    "nodemon": "^3.1.10",
-    "tsx": "^3.14.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.2.0",
-    "vitest": "^0.34.0"
+    "vitest": "^5.1.1"
   }
 }
