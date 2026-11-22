@@ -19,7 +19,7 @@
     "web:dev": "npm run web",
     "start:web": "npm run web",
     "test": "vitest",
-    "lint": "eslint src --ext .ts",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "migrate:db": "node dist/scripts/migrate-to-database.js",
     "migrate:db:dry": "node dist/scripts/migrate-to-database.js --dry-run",

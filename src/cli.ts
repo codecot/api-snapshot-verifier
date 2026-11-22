@@ -561,7 +561,7 @@ program
       daysAgo.setDate(daysAgo.getDate() - parseInt(options.days));
       
       // Filter changes
-      let filteredChanges = changeLog.filter((entry: any) => {
+      const filteredChanges = changeLog.filter((entry: any) => {
         const entryDate = new Date(entry.timestamp);
         const matchesDate = entryDate >= daysAgo;
         const matchesEndpoint = !options.endpoint || entry.endpoint === options.endpoint;

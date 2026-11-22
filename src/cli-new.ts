@@ -185,7 +185,7 @@ program
           const configManager = new DatabaseConfigManager();
           
           let config;
-          let createOptions: any = { source: 'cli' };
+          const createOptions: any = { source: 'cli' };
           
           if (options.copyFrom) {
             // Load config from existing space

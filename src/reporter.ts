@@ -1,5 +1,6 @@
 import { SnapshotComparison, SnapshotDiff } from './types.js';
 import chalk from 'chalk';
+import { dirname } from 'path';
 
 export interface ReportOptions {
   format: 'table' | 'json' | 'text' | 'markdown';
@@ -274,7 +275,7 @@ export class Reporter {
 
   async saveReport(report: string, filePath: string): Promise<void> {
     const fs = await import('fs-extra');
-    await fs.ensureDir(require('path').dirname(filePath));
+    await fs.ensureDir(dirname(filePath));
     await fs.writeFile(filePath, report, 'utf-8');
   }
 }
