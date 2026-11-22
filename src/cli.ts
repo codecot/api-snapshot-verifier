@@ -143,7 +143,8 @@ program
       
       if (options.format === 'json') {
         console.log(JSON.stringify(comparisons, null, 2));
-        return;
+        const breakingInJson = comparisons.some(c => c && c.differences.some(d => d.severity === 'breaking'));
+        process.exit(breakingInJson ? 1 : 0);
       }
       
       let hasBreakingChanges = false;
