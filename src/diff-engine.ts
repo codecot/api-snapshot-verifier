@@ -69,6 +69,17 @@ export class DiffEngine {
       return differences;
     }
 
+    if (Array.isArray(oldData) !== Array.isArray(newData)) {
+      differences.push({
+        path: basePath,
+        type: 'changed',
+        oldValue: oldData,
+        newValue: newData,
+        severity: 'breaking'
+      });
+      return differences;
+    }
+
     if (Array.isArray(oldData) && Array.isArray(newData)) {
       return this.compareArrays(oldData, newData, basePath);
     }
