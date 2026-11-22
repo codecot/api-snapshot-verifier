@@ -236,6 +236,14 @@ describe('DiffEngine.compareSnapshots', () => {
       expect(diff(oldData, newData, [{ path: 'response.data.users.*.lastModified', ignore: true }])).toEqual([])
     })
 
+    it('the first matching rule wins', () => {
+      const result = diff({ meta: { a: 1 } }, { meta: { a: 2 } }, [
+        { path: 'response.data.meta', severity: 'informational' },
+        { path: 'response.data.meta.a', ignore: true }
+      ])
+      expect(result.map(d => [d.path, d.severity])).toEqual([['response.data.meta.a', 'informational']])
+    })
+
     it('rules also apply to header and status differences', () => {
       const result = new DiffEngine([{ path: 'response.headers.content-type', ignore: true }]).compareSnapshots(
         snapshot({}, { headers: { 'content-type': 'a' } }),
