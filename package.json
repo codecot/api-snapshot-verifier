@@ -18,7 +18,7 @@
     "web": "concurrently \"PORT=3301 CORS_ORIGIN=http://localhost:3300 npm run dev:server\" \"cd src/web/frontend && npm run dev -- --port 3300\"",
     "web:dev": "npm run web",
     "start:web": "npm run web",
-    "test": "vitest",
+    "test": "vitest run",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "migrate:db": "node dist/scripts/migrate-to-database.js",
