@@ -1,464 +1,226 @@
-# 🧪 API Snapshot Verifier
+# API Snapshot Verifier
 
-Track & Diff Real-Time API Changes for Frontend Stability with Schema Validation
+`api-snapshot` is a command-line tool that records the responses of HTTP API endpoints as baseline snapshots, later fetches the same endpoints again and reports what changed. Each difference is classified as breaking, non-breaking or informational, and `compare` exits with code 1 when there is a breaking change, so it can fail a CI job.
 
-## Overview
+The project was written in June 2025. The CLI commands described below (`init`, `capture`, `compare`, `list`, `clean`) are covered by unit tests and an end-to-end test. Other parts of the codebase are listed under [Also in the codebase](#also-in-the-codebase) without a claim about their state.
 
-API Snapshot Verifier is a comprehensive tool that allows frontend developers to capture, persist, and compare API responses from defined endpoints to detect unexpected backend changes that may break frontend functionality. Now includes full OpenAPI schema validation and contract testing capabilities.
+## Requirements
 
-## Features
+- Node.js 22.12 or newer. Developed and tested on Node 24; the test runner (Vitest 5) needs 22.12+.
+- The CLI is built from source.
 
-### 🔧 Core Functionality
+## Quick start
 
-- 📸 **Snapshot Capture**: Capture API responses with metadata
-- 🔍 **Diff Detection**: Compare current responses with baseline snapshots
-- 🚨 **Breaking Change Alerts**: Identify breaking vs non-breaking changes
-- 🛠️ **CLI Interface**: Easy-to-use command line tool
-- ⚙️ **Configurable Rules**: Customize diff detection and severity levels
-- 📁 **Storage Management**: Automatic snapshot storage and cleanup
+Build the CLI:
 
-### 📋 Schema Integration
-
-- 🔗 **OpenAPI Import**: Import OpenAPI 3.x specs and auto-generate endpoint configurations
-- ✅ **Request Validation**: Validate request bodies against schema before sending
-- ✅ **Response Validation**: Validate API responses against expected schema
-- 🔍 **Schema-Aware Diffing**: Detect breaking changes based on schema contracts
-- 📊 **Contract Testing**: Ensure API responses comply with defined contracts
-
-### 🔄 Workflow Management
-
-- 🤝 **Interactive Approval**: Review and approve/reject changes interactively
-- 🚀 **Auto-Approval**: Auto-approve non-breaking changes
-- 📜 **Audit Trail**: Complete change history with approval reasons
-- 🔒 **Secure Authentication**: Bearer tokens, API keys, and custom headers
-
-## Installation
-
-```bash
-npm install
+```sh
+git clone https://github.com/codecot/api-snapshot-verifier.git
+cd api-snapshot-verifier
+npm ci
 npm run build
 ```
 
-## Quick Start
+Start a throwaway API to point it at. Any HTTP server works; this one serves a static JSON file with Python:
 
-### Web UI (Recommended)
-
-The web UI provides a modern interface for managing API snapshots without requiring configuration files:
-
-```bash
-# Start the web server (backend on port 3301, frontend on port 3300)
-npm run web
+```sh
+DEMO=$(mktemp -d)
+echo '{"id": 1, "name": "Ada", "count": 5}' > "$DEMO/user.json"
+python3 -m http.server 4010 --bind 127.0.0.1 --directory "$DEMO" &
 ```
 
-Then open <http://localhost:3300> in your browser. The web UI features:
-
-- 🎯 Visual space/environment management
-- 📊 Real-time dashboard with statistics
-- 🔄 WebSocket support for live updates
-- 💾 SQLite database storage (no config files needed)
-- 🚀 First-time setup wizard
-
-## CLI Usage
-
-### Option 1: Manual Configuration
-
-1. **Initialize configuration**:
-
-    ```bash
-    npx api-snapshot init
-    ```
-
-2. **Add endpoints interactively**:
-
-    ```bash
-    npx api-snapshot add
-    ```
-
-3. **Capture baseline snapshots**:
-
-    ```bash
-    npx api-snapshot capture --baseline
-    ```
-
-4. **Compare current state with baseline**:
-
-    ```bash
-    npx api-snapshot compare
-    ```
-
-### Option 2: Schema-First Approach
-
-1. **Import OpenAPI schema**:
-
-    ```bash
-    npx api-snapshot import-schema -s openapi.yaml --base-url https://api.example.com
-    ```
-
-2. **Capture baseline with validation**:
-
-    ```bash
-    npx api-snapshot capture --baseline
-    ```
-
-3. **Compare with schema validation**:
-
-    ```bash
-    npx api-snapshot compare --details
-    ```
-
-4. **Validate schema compliance**:
-
-    ```bash
-    npx api-snapshot validate-schema
-    ```
-
-## Commands
-
-### Basic Operations
-
-#### `init`
-
-Initialize a new configuration file.
-
-```bash
-npx api-snapshot init [--force]
-```
-
-#### `add`
-
-Add a new endpoint to configuration interactively.
-
-```bash
-npx api-snapshot add [options]
-```
-
-Options:
-
-- `-n, --name <name>`: Endpoint name
-- `-u, --url <url>`: Endpoint URL
-- `-m, --method <method>`: HTTP method
-- `--auth-token`: Add Authorization Bearer token
-- `--api-key <header>`: Add custom API key header
-
-#### `capture`
-
-Capture snapshots of configured endpoints.
-
-```bash
-npx api-snapshot capture [options]
-```
-
-Options:
-
-- `-e, --endpoint <name>`: Capture only specific endpoint
-- `-b, --baseline`: Save as baseline snapshot
-- `-c, --config <path>`: Path to config file
-
-#### `compare`
-
-Compare current API responses with baselines.
-
-```bash
-npx api-snapshot compare [options]
-```
-
-Options:
-
-- `-e, --endpoint <name>`: Compare only specific endpoint
-- `--format <type>`: Output format (table, json, text)
-- `--details`: Show detailed diff with old/new values
-- `--only-breaking`: Show only breaking changes
-- `--interactive`: Interactive approval workflow
-- `--auto-approve`: Auto-approve non-breaking changes
-- `--save-diff <path>`: Save detailed diff to JSON file
-
-#### `list`
-
-List stored snapshots.
-
-```bash
-npx api-snapshot list [options]
-```
-
-#### `clean`
-
-Clean up old snapshots.
-
-```bash
-npx api-snapshot clean [options]
-```
-
-Options:
-
-- `-k, --keep <count>`: Number of snapshots to keep per endpoint (default: 10)
-
-### Schema Operations
-
-#### `import-schema`
-
-Import API schema and generate endpoint configurations.
-
-```bash
-npx api-snapshot import-schema [options]
-```
-
-Options:
-
-- `-s, --schema <path>`: Path to OpenAPI/JSON Schema file (required)
-- `-t, --type <type>`: Schema type: openapi, json-schema (default: openapi)
-- `-o, --output <path>`: Output configuration file path
-- `--base-url <url>`: Base URL for generated endpoints
-- `--merge`: Merge with existing configuration
-
-#### `validate-schema`
-
-Validate current snapshots against their schemas.
-
-```bash
-npx api-snapshot validate-schema [options]
-```
-
-Options:
-
-- `-e, --endpoint <name>`: Validate specific endpoint only
-- `--request`: Validate request schemas only
-- `--response`: Validate response schemas only
-
-### Workflow Management
-
-#### `history`
-
-View change approval history and summary.
-
-```bash
-npx api-snapshot history [options]
-```
-
-Options:
-
-- `-e, --endpoint <name>`: Show history for specific endpoint
-- `--days <number>`: Show changes from last N days (default: 30)
-- `--status <status>`: Filter by status: approved, rejected, pending
-- `--summary`: Show summary only
-
-## Configuration
-
-### Basic Configuration
-
-The configuration file defines your API endpoints and rules:
+Create `api-snapshot.config.json` in the current directory (this file name is in `.gitignore`):
 
 ```json
 {
   "endpoints": [
-    {
-      "name": "users-api",
-      "url": "https://api.example.com/users",
-      "method": "GET",
-      "headers": {
-        "Authorization": "Bearer ${API_TOKEN}"
-      },
-      "timeout": 5000
-    }
-  ],
-  "snapshotDir": "./snapshots",
-  "baselineDir": "./snapshots/baseline",
-  "rules": [
-    {
-      "path": "response.data.*.id",
-      "severity": "breaking"
-    },
-    {
-      "path": "response.headers.date",
-      "ignore": true
-    }
-  ]
-}
-```
-
-### Schema-Enhanced Configuration
-
-Configuration with OpenAPI schema validation:
-
-```json
-{
-  "endpoints": [
-    {
-      "name": "create-user",
-      "url": "https://api.example.com/users",
-      "method": "POST",
-      "headers": {
-        "Authorization": "Bearer ${API_TOKEN}",
-        "Content-Type": "application/json"
-      },
-      "body": {
-        "name": "John Doe",
-        "email": "john@example.com"
-      },
-      "schema": {
-        "type": "openapi",
-        "source": "./api-spec.yaml",
-        "operationId": "createUser",
-        "requestValidation": true,
-        "responseValidation": true
-      }
-    }
+    { "name": "user", "url": "http://127.0.0.1:4010/user.json", "method": "GET" }
   ],
   "snapshotDir": "./snapshots",
   "baselineDir": "./snapshots/baseline"
 }
 ```
 
-### Endpoint Configuration
+Capture a baseline, then compare against it:
 
-- `name`: Unique identifier for the endpoint
-- `url`: The API endpoint URL
-- `method`: HTTP method (GET, POST, PUT, DELETE, PATCH)
-- `headers`: Optional headers object
-- `body`: Request body for POST/PUT/PATCH requests
-- `timeout`: Request timeout in milliseconds
-- `schema`: Schema validation configuration (optional)
+```text
+$ node dist/cli.js capture --baseline
+📸 Captured 1 snapshot(s)
+📌 Saved as baseline
+$ echo $?
+0
 
-### Schema Configuration
+$ node dist/cli.js compare
 
-- `type`: Schema type (openapi, json-schema, graphql, custom)
-- `source`: Path to schema file
-- `operationId`: Specific operation ID for OpenAPI schemas
-- `requestValidation`: Enable request body validation
-- `responseValidation`: Enable response validation
+🔍 user
+  ✅ No changes detected
 
-### Diff Rules
-
-Control how differences are detected and classified:
-
-- `path`: JSONPath-style selector for the field
-- `ignore`: Skip this field in comparisons
-- `severity`: Override severity level (`breaking`, `non-breaking`, `informational`)
-
-## Change Severity Levels
-
-- **Breaking**: Changes that will likely break frontend code
-  - Removed fields, type changes, status code changes from 2xx to 4xx/5xx
-  - Schema validation failures (new validation errors)
-  - Required fields becoming missing
-- **Non-breaking**: Changes that shouldn't break frontend code
-  - New fields, improvements, status code improvements
-  - Reduced validation errors
-- **Informational**: Changes that are noteworthy but unlikely to impact functionality
-  - Header changes, performance improvements
-
-## Schema Validation Benefits
-
-- **Contract Testing**: Ensure API responses match OpenAPI specifications
-- **Early Detection**: Catch schema violations before they reach production
-- **Documentation Sync**: Keep API documentation in sync with actual behavior
-- **Type Safety**: Validate request/response data types and structure
-- **Breaking Change Prevention**: Detect when APIs stop conforming to contracts
-
-## CI/CD Integration
-
-Exit codes:
-
-- `0`: No breaking changes detected
-- `1`: Breaking changes detected or command failed
-
-### Basic GitHub Actions Workflow
-
-```yaml
-- name: API Snapshot Check
-  run: |
-    npx api-snapshot compare
-  env:
-    API_TOKEN: ${{ secrets.API_TOKEN }}
+✅ No changes detected
+$ echo $?
+0
 ```
 
-### Advanced Workflow with Schema Validation
+Change a string value. That is reported as non-breaking and the exit code stays 0:
 
-```yaml
-- name: API Contract Testing
-  run: |
-    # Import latest OpenAPI spec
-    npx api-snapshot import-schema -s openapi.yaml --merge
-    
-    # Capture current state with validation
-    npx api-snapshot capture
-    
-    # Compare with schema validation
-    npx api-snapshot compare --details
-    
-    # Validate schema compliance
-    npx api-snapshot validate-schema
-  env:
-    API_TOKEN: ${{ secrets.API_TOKEN }}
+```text
+$ echo '{"id": 1, "name": "Grace", "count": 5}' > "$DEMO/user.json"
+$ node dist/cli.js compare --details
+
+🔍 user
+  ⚠️  1 non-breaking change(s)
+    • response.data.name: changed
+      - Old: "Ada"
+      + New: "Grace"
+  ℹ️  1 informational change(s)
+    • response.headers.content-length: changed
+      - Old: "37"
+      + New: "39"
+
+⚠️  Changes detected, but no breaking changes
+$ echo $?
+0
 ```
 
-### Integration with API Updates
+Change a number into a string. That is a breaking change and the exit code is 1:
 
-```yaml
-- name: API Change Approval
-  run: |
-    # Interactive approval for staging
-    npx api-snapshot compare --interactive --auto-approve
-    
-    # View change history
-    npx api-snapshot history --summary
-  env:
-    API_TOKEN: ${{ secrets.API_TOKEN }}
+```text
+$ echo '{"id": 1, "name": "Ada", "count": "5"}' > "$DEMO/user.json"
+$ node dist/cli.js compare --details
+
+🔍 user
+  🚨 1 breaking change(s)
+    • response.data.count: changed
+      - Old: 5
+      + New: "5"
+  ℹ️  1 informational change(s)
+    • response.headers.content-length: changed
+      - Old: "37"
+      + New: "39"
+
+🚨 Breaking changes detected!
+$ echo $?
+1
 ```
+
+Stop the demo server with `kill %1` and delete `$DEMO` when done.
+
+## Commands
+
+All commands read `./api-snapshot.config.json` unless `-c, --config <path>` is given. `node dist/cli.js <command> --help` lists every option.
+
+| Command | What it does |
+| --- | --- |
+| `init [--force]` | Writes a starter `api-snapshot.config.json` with no endpoints. |
+| `capture [-e <name>] [--baseline]` | Fetches every endpoint (or one with `-e`) and saves a timestamped snapshot to `snapshotDir`. With `--baseline` it also writes `<baselineDir>/<name>.json`, replacing the previous baseline. |
+| `compare [-e <name>]` | Loads each baseline, fetches the endpoint again and prints the differences. The fresh response is not saved; use `capture` for that. |
+| `list [-e <name>]` | Lists saved snapshots, newest first. |
+| `clean [-e <name>] [-k <count>]` | Deletes all but the newest `count` snapshots per endpoint (default 10). Baselines are not touched. |
+
+Output options of `compare`:
+
+| Option | Effect |
+| --- | --- |
+| `--details` | Prints old and new values for each difference. |
+| `--summary` | Prints counts per endpoint and a summary, no individual differences. |
+| `--only-breaking` | Lists breaking differences only, followed by the summary. |
+| `--format json` | Prints the comparison results as JSON instead of text. |
+| `--save-diff <file>` | Also writes the comparison results and a summary to a JSON file. |
+
+## Configuration
+
+```json
+{
+  "endpoints": [
+    {
+      "name": "create-post",
+      "url": "https://api.example.com/posts",
+      "method": "POST",
+      "headers": { "Content-Type": "application/json" },
+      "body": { "title": "Test" },
+      "timeout": 5000
+    }
+  ],
+  "snapshotDir": "./snapshots",
+  "baselineDir": "./snapshots/baseline",
+  "rules": [
+    { "path": "response.data.*.updatedAt", "ignore": true },
+    { "path": "response.data.price", "severity": "breaking" }
+  ]
+}
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `endpoints[].name` | yes | Used in file names and output. |
+| `endpoints[].url` | yes | Full URL. |
+| `endpoints[].method` | yes | HTTP method, for example `GET` or `POST`. |
+| `endpoints[].headers` | no | Sent as written. `${VAR}` placeholders are **not** expanded from the environment. |
+| `endpoints[].body` | no | Sent as JSON, for `POST`, `PUT` and `PATCH` only. |
+| `endpoints[].timeout` | no | Milliseconds, default 30000. Exceeding it makes the capture fail. |
+| `snapshotDir` | yes | Where timestamped snapshots are written. |
+| `baselineDir` | no | Where baselines are written. Default: `<snapshotDir>/baseline`. |
+| `rules` | no | See [Rules](#rules). |
+
+A snapshot stores the status code, the response headers (with `authorization`, `cookie`, `set-cookie` and `x-api-key` replaced by `[REDACTED]`), the parsed body and the request duration. Non-2xx responses are recorded like any other response.
+
+## How differences are classified
+
+Paths look like `response.data.user.address.city` or `response.data.items[0].price`.
+
+| Difference | Severity |
+| --- | --- |
+| Field removed from an object | breaking |
+| Value changed type (number to string, object to array, ...) | breaking |
+| Value changed from or to `null` | breaking |
+| Value of an id field changed (last key is `id`, `ids`, `userId`, `user_id`, ...) | breaking |
+| Status code changed from 2xx to anything outside 2xx | breaking |
+| `content-type` header changed | breaking |
+| Field added to an object | non-breaking |
+| Any other value change of the same type | non-breaking |
+| Array length changed (reported as `<path>.length`) | non-breaking |
+| Status code changed from non-2xx to 2xx | non-breaking |
+| Other status code change, for example 200 to 201 | informational |
+| `content-length` or `cache-control` header changed | informational |
+
+Arrays are compared index by index up to the shorter length; extra or missing elements show up only as a length change. Headers other than `content-type`, `content-length` and `cache-control` are not compared.
+
+### Rules
+
+Each rule has a `path` and either `"ignore": true` (drop matching differences) or a `"severity"` (`breaking`, `non-breaking` or `informational`) that overrides the classification. A rule matches a difference when the rule's path segments are a prefix of the difference path's segments, so a rule also covers everything below it. `*` matches any single segment, including an array index: `response.data.*.id` matches `response.data[3].id`. The first matching rule wins.
+
+## Exit codes
+
+| Situation | Exit code |
+| --- | --- |
+| No changes, or only non-breaking and informational changes | 0 |
+| At least one breaking change (also with `--format json`) | 1 |
+| Error: config not found, baseline missing, unknown endpoint, request failed | 1 |
+
+An error and a breaking change both exit with 1; the printed message tells them apart. To use it in CI, keep the config and the baseline files in the repository and run `node dist/cli.js compare` as a job step.
+
+## Also in the codebase
+
+These exist in the repository. They are not covered by the tests and were not checked when this README was written.
+
+- Web UI: a Fastify backend (`src/web/start-server.ts`; `npm run server` after a build, or `npm run web` for backend and frontend in development mode) that stores data in SQLite (`src/database/`), and a React frontend in `src/web/frontend/`. The frontend does not build at the moment: `src/web/frontend/src/api/snapshots/snapshots.api.ts` is imported but is not in the repository.
+- OpenAPI and JSON Schema support: the `import-schema` and `validate-schema` commands and the `schema` field of an endpoint (`src/schema-manager.ts`).
+- Change review: `compare --interactive`, `compare --auto-approve`, `history`, and `add` for adding endpoints interactively (`src/cli.ts`).
+- A second CLI built on a plugin system (`src/cli-new.ts`, `src/core/`, `src/plugins/`). It is not the `api-snapshot` binary.
+- Postman collection conversion (`src/utils/postman-converter.ts`).
+
+Older, longer documentation: [HOWTO.md](HOWTO.md), [FEATURES.md](FEATURES.md), [SETUP.md](SETUP.md), [DEPLOYMENT.md](DEPLOYMENT.md), [PORT_CONFIGURATION.md](PORT_CONFIGURATION.md).
 
 ## Development
 
-```bash
-# Install dependencies (includes frontend)
-npm install
-
-# Run web UI (recommended)
-npm run web              # Backend on 3301, Frontend on 3300
-
-# Run in development mode
-npm run dev              # CLI development
-npm run dev:server       # Backend only
-npm run dev:frontend     # Frontend only
-
-# Build
+```sh
+npm ci              # also installs src/web/frontend dependencies (postinstall)
+npm run typecheck
+npm run lint        # 0 errors; existing warnings remain
+npm test            # vitest run; tests start local HTTP servers, no internet access
 npm run build
-
-# Testing
-npm test                 # Run tests
-npm run lint             # Lint code
-npm run typecheck        # Type check
-
-# Cleanup commands
-npm run clean            # Clean root (dist, node_modules, package-lock.json)
-npm run clean:frontend   # Clean frontend
-npm run clean:db         # Remove database
-npm run clean:snapshots  # Remove snapshots directory
-npm run clean:code       # Clean all code (root + frontend)
-npm run clean:all        # Clean everything (code + data)
-
-# Reset commands
-npm run reinstall        # Clean code and reinstall dependencies
-npm run reset:db         # Remove database (recreated on server start)
-npm run reset:all        # Full reset (clean everything + reinstall)
-
-# Database management
-npm run migrate:db       # Migrate from JSON to SQLite
-npm run migrate:db:dry   # Preview migration (dry run)
-npm run migrate:db:cleanup # Run database cleanup
 ```
 
-### Cleanup Script Details
-
-- **`clean`**: Removes build artifacts and dependencies from root
-- **`clean:frontend`**: Removes build artifacts and dependencies from frontend
-- **`clean:db`**: Removes SQLite database files (snapshots.db)
-- **`clean:snapshots`**: Removes captured snapshot files
-- **`clean:code`**: Cleans only code directories (preserves data)
-- **`clean:all`**: Nuclear option - removes all code and data
-
-- **`reinstall`**: Safe reinstall - cleans code but preserves your database and snapshots
-- **`reset:db`**: Removes database only (auto-recreated on server start)
-- **`reset:all`**: Complete fresh start - removes everything and reinstalls
+CI runs these steps on Node 24 (`.github/workflows/ci.yml`).
 
 ## License
 
-MIT
+MIT, see [LICENSE](LICENSE).
