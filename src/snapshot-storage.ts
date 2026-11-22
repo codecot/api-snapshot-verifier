@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, basename } from 'path';
 import { ensureDir, pathExists } from 'fs-extra';
 import { ApiSnapshot } from './types.js';
 
@@ -58,9 +58,10 @@ export class SnapshotStorage {
       .map(file => join(this.baseDir, file));
 
     if (endpointName) {
-      snapshots = snapshots.filter(file => 
-        file.includes(`${endpointName}_`)
-      );
+      // File names are "<endpoint>_<YYYY-MM-DD>_<HH-MM-SS>.json" (see generateFileName).
+      const escaped = endpointName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const pattern = new RegExp(`^${escaped}_\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}\\.json$`);
+      snapshots = snapshots.filter(file => pattern.test(basename(file)));
     }
 
     // Sort by modification time (newest first)
